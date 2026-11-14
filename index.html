@@ -1,4 +1,5 @@
-<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>*,*::before,*::after{box-sizing:border-box}html,body{margin:0}[hidden]{display:none!important}</style><title>STWG Verwaltung</title>
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>*,*::before,*::after{box-sizing:border-box}html,body{margin:0}[hidden]{display:none!important}button.linkbtn{background:none;border:0;padding:4px 2px;color:var(--brand,#0f4c5c);text-decoration:underline;font-size:inherit;cursor:pointer}
+</style><title>STWG Verwaltung</title>
 <meta name="theme-color" content="#0f4c5c">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -774,15 +775,26 @@ function navHTML(){
     return '<button class="nb" data-act="nav" data-k="'+it[0]+'"'+(S.nav===it[0]?' aria-current="page"':'')+'>'+svg(it[2],22)+'<span>'+it[1]+'</span>'+(it[0]==='today'&&late?'<em aria-label="'+late+' überfällig">'+late+'</em>':'')+'</button>';
   }).join('')+'</div>';
 }
+function lastFri16(){ var d=new Date(); d.setHours(16,0,0,0); while(d.getDay()!==5||d>new Date()) d.setDate(d.getDate()-1); if(d.getDay()===5&&d>new Date()) d.setDate(d.getDate()-7); return d.getTime(); }
 function modeNote(){
+  var has=S.units.length||S.entries.length; if(!has) return '';
   var last=0; try{ last=+localStorage.getItem(LASTBK)||0; }catch(e){}
-  var days=last?Math.floor((Date.now()-last)/864e5):null;
-  var has=S.units.length||S.entries.length;
-  var txt=!has?'Alle Daten bleiben nur auf diesem Gerät. Hast du schon eine Sicherung? Hier einspielen.'
-    : last? 'Daten nur auf diesem Gerät. Letzte Sicherung: '+(days===0?'heute':'vor '+days+(days===1?' Tag':' Tagen'))+'.'
-    : 'Daten nur auf diesem Gerät. Noch keine Sicherung gemacht.';
-  var warn=has&&(!last||days>=7);
-  return '<div class="note"'+(warn?' style="border-color:var(--warn,#c98a1b)"':'')+'>'+txt+' <button class="btn" data-act="backup-save" style="margin:4px 4px 0 0">Sicherung speichern</button><button class="btn" data-act="backup-load" style="margin-top:4px">Sicherung laden</button></div>';
+  if(last>=lastFri16()) return '';
+  return '<div class="note" style="display:flex;align-items:center;gap:10px;justify-content:space-between;padding:7px 12px;font-size:13px"><span>Sicherung fällig</span><button class="btn small" data-act="backup-save">Jetzt sichern</button></div>';
+}
+function backupFooter(){
+  var last=0; try{ last=+localStorage.getItem(LASTBK)||0; }catch(e){}
+  var t=last?new Date(last).toLocaleDateString('de-CH')+' '+new Date(last).toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'}):'noch nie';
+  return '<p class="hint" style="text-align:center;font-size:12.5px;margin:22px 0 8px">Daten nur auf diesem Gerät · letzte Sicherung: '+t+'<br>'+
+   '<button class="linkbtn" data-act="backup-save">Sichern</button> · <button class="linkbtn" data-act="backup-load">Laden</button> · <button class="linkbtn" data-act="backup-ics">Freitags-Erinnerung (Kalender)</button></p>';
+}
+function icsReminder(){
+  var d=new Date(); d.setHours(16,0,0,0); while(d.getDay()!==5||d<=new Date()) d.setDate(d.getDate()+1);
+  function f(x){ function p(n){ return (n<10?'0':'')+n; } return x.getFullYear()+p(x.getMonth()+1)+p(x.getDate())+'T'+p(x.getHours())+p(x.getMinutes())+'00'; }
+  var e=new Date(d.getTime()+15*60000);
+  var ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//STWG//DE','BEGIN:VEVENT','UID:stwg-sicherung@local','DTSTAMP:'+new Date().toISOString().replace(/[-:]/g,'').slice(0,15)+'Z','DTSTART:'+f(d),'DTEND:'+f(e),'RRULE:FREQ=WEEKLY;BYDAY=FR','SUMMARY:STWG-App: Sicherung machen','DESCRIPTION:App öffnen und auf Sichern tippen.','BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:Sicherung','TRIGGER:PT0S','END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n');
+  var url=URL.createObjectURL(new Blob([ics],{type:'text/calendar'})); var a=document.createElement('a'); a.href=url; a.download='stwg-sicherung-freitag.ics'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(url); },4000);
+  toast('Öffne die Datei, dann trägt dein Kalender die Erinnerung jeden Freitag um 16:00 ein.');
 }
 function checkBtn(e,done){
   return '<button class="check" aria-pressed="'+done+'" aria-label="'+(e.kind==='task'?'Als erledigt markieren':'Als behoben markieren')+'" data-act="toggle" data-id="'+esc(e.id)+'"><span>✓</span></button>';
@@ -814,7 +826,7 @@ function todayView(){
   if(!S.units.length){
     return h+'<div class="empty"><h2>Willkommen</h2>'+
       '<p>Leg deine erste Liegenschaft an. Danach hast du alles an einem Ort: wiederkehrende Arbeiten, Wartungen, Schäden mit Fotos, Notfallnummern, Schlüssel, Zählerstände und deinen Arbeitsrapport.</p>'+
-      '<div class="actions"><button class="btn primary" data-act="new-unit">Erste STWG anlegen</button><button class="btn" data-act="load-example">Beispiel ansehen</button></div></div>';
+      '<div class="actions"><button class="btn primary" data-act="new-unit">Erste STWG anlegen</button><button class="btn" data-act="load-example">Beispiel ansehen</button></div></div>'+backupFooter();
   }
   var all=dueItems(), late=all.filter(function(x){ return x.n<0; }), tod=all.filter(function(x){ return x.n===0; }),
       week=all.filter(function(x){ return x.n>0&&x.n<=7; }), later=all.filter(function(x){ return x.n>7; }), dm=openDamages();
@@ -829,6 +841,7 @@ function todayView(){
   if(!late.length&&!tod.length&&!week.length) h+='<section class="panel"><h2 class="ph2">Diese Woche</h2><p class="hint" style="padding:0 16px 16px">Nichts fällig. Alles im grünen Bereich.</p></section>';
   if(dm.length) h+='<section class="panel"><h2 class="ph2">Offene Schäden<i>'+dm.length+'</i></h2>'+damageRows(dm.slice(0,8),multi)+'</section>';
   h+=dueGroup('Demnächst',later.slice(0,8),'',multi);
+  h+=backupFooter();
   return h;
 }
 function unitsView(){
@@ -1439,6 +1452,7 @@ document.addEventListener('click',function(ev){
   else if(a==='new-unit') openUnitForm(null);
   else if(a==='backup-save') exportBackup();
   else if(a==='backup-load') pickBackup();
+  else if(a==='backup-ics') icsReminder();
   else if(a==='load-example') loadExample().catch(function(){ toast('Beispiel konnte nicht geladen werden.'); });
   else if(a==='open-unit'){ S.nav='units'; S.unitId=id; S.sec=null; S.house=''; S.showDone=false; render(); window.scrollTo(0,0); }
   else if(a==='back'){ S.unitId=null; S.sec=null; render(); window.scrollTo(0,0); }
