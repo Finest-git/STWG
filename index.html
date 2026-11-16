@@ -542,16 +542,31 @@ async function dropPhoto(id){
 /* ---------- Sicherung ---------- */
 function blobToDataUrl(b){ return new Promise(function(res,rej){ var fr=new FileReader(); fr.onload=function(){ res(fr.result); }; fr.onerror=rej; fr.readAsDataURL(b); }); }
 async function dataUrlToBlob(u){ var i=u.indexOf(','), m=/^data:([^;,]*)/.exec(u), bin=atob(u.slice(i+1)), a=new Uint8Array(bin.length); for(var k=0;k<bin.length;k++) a[k]=bin.charCodeAt(k); return new Blob([a],{type:(m&&m[1])||'image/jpeg'}); }
-async function exportBackup(){
+async function exportBackup(mode){
   try{
     var ph=await idbAll('photos'), out=[];
     for(var i=0;i<ph.length;i++) out.push({id:ph[i].id,data:await blobToDataUrl(ph[i].blob)});
     var j=JSON.stringify({app:'stwg-verwaltung',version:1,exported:new Date().toISOString(),units:local.units,entries:local.entries,settings:local.settings,photos:out});
-    var url=URL.createObjectURL(new Blob([j],{type:'application/json'}));
-    var a=document.createElement('a'); a.href=url; a.download='stwg-sicherung-'+ymd()+'.json'; document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(function(){ URL.revokeObjectURL(url); },4000);
+    var blob=new Blob([j],{type:'application/json'}), fname='stwg-sicherung-'+ymd()+'.json', done=false;
+    if(mode!=='file' && navigator.share && navigator.canShare && blob.size<20*1048576){
+      try{
+        var f=new File([blob],fname,{type:'application/json'});
+        if(navigator.canShare({files:[f]})){
+          await navigator.share({files:[f],title:'STWG Sicherung '+fmtDate(ymd()),text:'Sicherung der STWG-App vom '+fmtDate(ymd())});
+          done=true;
+        }
+      }catch(e){
+        if(e&&e.name==='AbortError'){ toast('Abgebrochen. Die Sicherung wurde nicht gespeichert.'); return; }
+      }
+    }
+    if(!done){
+      var url=URL.createObjectURL(blob);
+      var a=document.createElement('a'); a.href=url; a.download=fname; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); },4000);
+      done=true; toast(mode==='file'?'Sicherung gespeichert (Ordner Downloads).':'Teilen nicht möglich, Sicherung als Datei gespeichert (Ordner Downloads).');
+    }else toast('Sicherung geteilt. Hast du sie gesendet oder gespeichert?');
     try{ localStorage.setItem(LASTBK, String(Date.now())); }catch(e){}
-    toast('Sicherung gespeichert (Ordner Downloads).'); render();
+    render();
   }catch(e){ toast('Sicherung fehlgeschlagen.'); }
 }
 async function importBackup(file){
@@ -842,7 +857,7 @@ function backupFooter(){
   var last=0; try{ last=+localStorage.getItem(LASTBK)||0; }catch(e){}
   var t=last?new Date(last).toLocaleDateString('de-CH')+' '+new Date(last).toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'}):'noch nie';
   return '<p class="hint" style="text-align:center;font-size:12.5px;margin:22px 0 8px">Daten nur auf diesem Gerät · letzte Sicherung: '+t+'<br>'+
-   '<button class="linkbtn" data-act="backup-save">Sichern</button> · <button class="linkbtn" data-act="backup-load">Laden</button> · <button class="linkbtn" data-act="report-pdf">Als PDF</button> · <button class="linkbtn" data-act="backup-ics">Freitags-Erinnerung (Kalender)</button></p>';
+   '<button class="linkbtn" data-act="backup-save">Sichern (Mail)</button> · <button class="linkbtn" data-act="backup-file">Als Datei</button> · <button class="linkbtn" data-act="backup-load">Laden</button> · <button class="linkbtn" data-act="report-pdf">Als PDF</button> · <button class="linkbtn" data-act="backup-ics">Freitags-Erinnerung (Kalender)</button></p>';
 }
 function icsReminder(){
   var d=new Date(); d.setHours(16,0,0,0); while(d.getDay()!==5||d<=new Date()) d.setDate(d.getDate()+1);
@@ -1519,7 +1534,8 @@ document.addEventListener('click',function(ev){
     S.nav=k; render(); window.scrollTo(0,0);
   }
   else if(a==='new-unit') openUnitForm(null);
-  else if(a==='backup-save') exportBackup();
+  else if(a==='backup-save') exportBackup('share');
+  else if(a==='backup-file') exportBackup('file');
   else if(a==='backup-load') pickBackup();
   else if(a==='backup-ics') icsReminder();
   else if(a==='report-pdf') printReport();
