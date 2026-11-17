@@ -949,14 +949,61 @@ var FUN=[
  'Geduld ist die Kunst, einen tropfenden Wasserhahn zu lieben.',
  'Heute schon geschaut, ob alles sitzt, passt und nicht wackelt?',
  'Kaffee rein, Probleme raus.',
- 'Ein Hauswart sieht alles, hört alles und sagt nur: Ich schau es mir an.'
+ 'Ein Hauswart sieht alles, hört alles und sagt nur: Ich schau es mir an.',
+ 'Feine Rute, leichte Schnur, kleiner Haken: Wer behauptet, nur die Grösse zähle, war noch nie am Bergbach.',
+ 'Wer geduldig wartet, wird belohnt. Wer zu früh zieht, hat nur Luft am Haken.',
+ 'Ein sanfter Anhieb wirkt Wunder. Bei Forellen und bei Reklamationen.',
+ 'Heute schon nass geworden? Der Bergbach zählt.',
+ 'Die schönsten Stellen findet man nur, wenn man auch mal tief watet.',
+ 'Zappelt es am Haken, ist es eine Forelle oder ein Mieter mit Beschwerde.',
+ 'Es ist nicht der Köder, der zählt, sondern wie du ihn führst.',
+ 'Zu kurz gebissen? Nächstes Mal etwas tiefer ansetzen.',
+ 'Der Bachsaibling schaut dich an und weiss: Du hast heute noch nichts gefangen.',
+ 'Wo die Forelle steht, steht auch der Hauswart gern: im Schatten, mit Aussicht.',
+ 'Ein Fisch, der entkommt, wird mit jedem Erzählen grösser. Eine Reparatur auch.',
+ 'Fischerlatein und Handwerkerlatein haben eines gemeinsam: Es war viel grösser.',
+ 'Ein guter Wurf sitzt beim ersten Mal. Für den Rest gibt es Übung.',
+ 'Leise anschleichen, ruhig auswerfen, abwarten. Gilt für Forellen und für Hauswartsarbeiten.',
+ 'Ein Fisch in der Hand ist besser als ein Mieter am Telefon.',
+ 'Schnur zu schlaff, Spannung weg. Bei Rohrleitungen genauso.',
+ 'Der frühe Vogel fängt den Wurm. Die frühe Forelle den Wobbler.',
+ 'Kein Netz? Kein Problem. Diese App angelt auch ohne Empfang.',
+ 'Ein Tag ohne Schaden ist wie ein See ohne Fische: verdächtig ruhig.',
+ 'Es gibt keine dummen Fragen, nur tropfende Hähne.',
+ 'Kalk ist wie ein schlechter Ruf: Er bleibt hängen, wenn man ihn nicht regelmässig entfernt.',
+ 'Ein dichter Hahn macht glücklich. Ein tropfender macht Gedanken.',
+ 'Im Winter sollen die Leitungen schön warm bleiben. Der Hauswart übrigens auch.',
+ 'Ein Griff, ein Dreh, ein Seufzer: Ventil zu.',
+ 'Heute schon jemandem den Hahn zugedreht?',
+ 'Hauptsache, es steckt nichts Hartes im Siphon.',
+ 'Lieber einmal zu viel nachgezogen als einmal zu wenig.',
+ 'Wer es sanft angeht, kommt weiter als mit Gewalt. Fragt jede Verschlussschraube.',
+ 'Schmieren, ölen, dichten: das Leben des Hauswarts in drei Wörtern.',
+ 'Rohre verstopfen, Nerven auch. Reinigen hilft bei beiden.',
+ 'Das Licht im Treppenhaus brennt, die Geduld auch. Mal sehen, was zuerst ausgeht.',
+ 'Ein Hauswart hat immer einen Schlüssel dabei. Nur nie den richtigen.',
+ 'Es wackelt, es klemmt, es tropft: willkommen im Berufsalltag.',
+ 'Drücken, drehen, loslassen, fertig. So funktioniert ein Türschliesser.',
+ 'Wer im Treppenhaus stöhnt, ist entweder ausser Atem oder der Nachbar.',
+ 'Hauswart sein heisst: Man wird immer dann gerufen, wenn es am meisten tropft.',
+ 'Pünktlich wie ein Kuckuck, nur mit besserem Werkzeug.',
+ 'Auch eine harte Nuss lässt sich knacken, wenn man den richtigen Schlüssel hat.',
+ 'Nach dem Entkalken ist vor dem Entkalken.',
+ 'Heute ist ein guter Tag, um Dinge zu verschieben. Aber nicht die Heizungswartung.',
+ 'Zuerst die Arbeit, dann das Vergnügen. Und dann wieder die Arbeit.',
+ 'Ohne Öl läuft nichts, nicht mal ein Hauswart.',
+ 'Ein Hauswart ohne Taschenlampe ist wie ein Angler ohne Ausreden.',
+ 'Vorsicht bei nassen Stufen. Und bei Bemerkungen darüber.',
+ 'Wer mit den Händen arbeitet, hat am Abend etwas, das man anfassen kann.',
+ 'Gedämpft wird nur der Schall, nie der Humor.'
 ];
 var DONEL=['Erledigt. Volltreffer.','Erledigt. Sauber angeschlagen.','Erledigt. Und es hat nicht mal getropft.','Erledigt. Schnur straff, Aufgabe im Kescher.','Erledigt. Das hat gesessen.','Erledigt. Schön eingelocht.','Erledigt. Ganz ohne Fehlbiss.'];
 var CALML=['Nichts fällig. Zeit, die Rute auszuwerfen.','Nichts fällig. Die Ruhe vor dem Biss.','Nichts fällig. Alles dicht, alles trocken, alles gut.','Nichts fällig. Heute darfst du auch mal nichts anfassen.','Nichts fällig. Der Köder ruht, die Forelle auch.'];
+function newSpruch(){ var q; do{ q=Math.floor(Math.random()*FUN.length); }while(FUN.length>1&&q===S.fq); S.fq=q; }
 function funOn(){ try{ return localStorage.getItem('stwg-fun')!=='0'; }catch(e){ return true; } }
 function dayIdx(){ var d=new Date(); return Math.floor((d-new Date(d.getFullYear(),0,0))/864e5); }
 function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
-function spruchCard(){ if(!funOn()) return ''; var i=(S.fq!=null)?S.fq:(dayIdx()%FUN.length); return '<button class="spruch" data-act="spruch" aria-label="Neuer Spruch">'+esc(FUN[i])+'</button>'; }
+function spruchCard(){ if(!funOn()) return ''; if(S.fq==null) newSpruch(); var i=S.fq; return '<button class="spruch" data-act="spruch" aria-label="Neuer Spruch">'+esc(FUN[i])+'</button>'; }
 function lastFri16(){ var d=new Date(); d.setHours(16,0,0,0); while(d.getDay()!==5||d>new Date()) d.setDate(d.getDate()-1); if(d.getDay()===5&&d>new Date()) d.setDate(d.getDate()-7); return d.getTime(); }
 function modeNote(){
   var has=S.units.length||S.entries.length; if(!has) return '';
@@ -1644,6 +1691,7 @@ document.addEventListener('click',function(ev){
   if(a==='nav'){
     if(k==='units' && S.nav==='units'){ S.unitId=null; S.sec=null; }
     if(k==='cal' && S.nav!=='cal'){ S.cal.unit=''; calGoto(ymd()); }
+    if(k==='today') newSpruch();
     S.nav=k; render(); window.scrollTo(0,0);
   }
   else if(a==='new-unit') openUnitForm(null);
@@ -1652,7 +1700,7 @@ document.addEventListener('click',function(ev){
   else if(a==='backup-load') pickBackup();
   else if(a==='backup-ics') icsReminder();
   else if(a==='quick-photo') quickPhoto();
-  else if(a==='spruch'){ var q; do{ q=Math.floor(Math.random()*FUN.length); }while(FUN.length>1&&q===S.fq); S.fq=q; render(); }
+  else if(a==='spruch'){ newSpruch(); render(); }
   else if(a==='fun-toggle'){ try{ localStorage.setItem('stwg-fun',funOn()?'0':'1'); }catch(e){} render(); }
   else if(a==='report-pdf') printReport();
   else if(a==='load-example') loadExample().catch(function(){ toast('Beispiel konnte nicht geladen werden.'); });
