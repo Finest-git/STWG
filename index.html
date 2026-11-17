@@ -3,6 +3,7 @@
 canvas[aria-label=Unterschriftsfeld]{width:100%;aspect-ratio:3/1;background:#fff;border:1px solid var(--line2);border-radius:12px;touch-action:none;display:block}.sigfoot{display:flex;justify-content:space-between;align-items:center;gap:8px}.sigfoot small{color:var(--muted)}.rp-sig img{height:50px;vertical-align:middle;border-bottom:1px solid #999}
 .sec.lv1{background:var(--pri-soft);border-color:transparent}.sec.lv2{background:var(--warn-bg);border-color:var(--warn)}.sec.lv3{background:var(--bad-bg);border-color:var(--bad)}.sec.lv2 small{color:var(--warn)}.sec.lv3 small{color:var(--bad)}
 .uh2{display:flex;align-items:center;gap:12px;min-width:0}.crest{flex:none;display:block}.crests{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.cr{position:relative;cursor:pointer;display:block}.cr input{position:absolute;opacity:0;pointer-events:none}.cr span{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;border:2px solid transparent;border-radius:12px}.cr small{font-size:11px;color:var(--muted)}.cr input:checked+span{border-color:var(--pri);background:var(--pri-soft)}.wxrow{display:flex;gap:14px;align-items:center;padding:0 16px 14px}.wxrow>b{font-size:34px;font-weight:800;font-variant-numeric:tabular-nums}.wxd{display:flex;flex-direction:column;font-size:12.5px;color:var(--muted);margin-top:2px}.wxh{margin:0 16px 14px;padding:8px 12px;border-radius:10px;background:var(--warn-bg);color:var(--warn);font-weight:600;font-size:13px}
+.spruch{display:block;width:100%;text-align:left;font:inherit;font-style:italic;font-size:14px;line-height:1.45;color:var(--muted);background:var(--surface);border:1px dashed var(--line2);border-radius:12px;padding:10px 14px;margin:0 0 12px;cursor:pointer}
 button.linkbtn{background:none;border:0;padding:4px 2px;color:var(--brand,#0f4c5c);text-decoration:underline;font-size:inherit;cursor:pointer}
 </style><title>STWG Verwaltung</title>
 <meta name="theme-color" content="#0f4c5c">
@@ -915,6 +916,47 @@ function weatherCard(){
   return '<section class="panel wx"><h2 class="ph2">Wetter Flims/Laax</h2><div class="wxrow"><b>'+Math.round(c.temperature_2m)+'°</b><div><div>'+esc(WXC[c.weather_code]||'')+', heute '+Math.round(dy.temperature_2m_min[0])+'° bis '+Math.round(dy.temperature_2m_max[0])+'°</div><div class="wxd">'+days+'</div></div></div>'+
     (hint.length?'<div class="wxh">'+hint.map(esc).join('<br>')+'</div>':'')+(old?'<p class="hint" style="padding:0 16px 12px;margin:0">Stand: '+new Date(w.t).toLocaleString('de-CH',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})+' (kein Empfang)</p>':'')+'</section>';
 }
+var FUN=[
+ 'Je feiner die Schnur, desto grösser die Spannung.',
+ 'Bei der UL-Rute zählt nicht die Länge, sondern wie man damit umgeht.',
+ 'Wer den Köder tief führt, bekommt öfter einen Biss.',
+ 'Auch eine kleine Forelle kann ordentlich Zug haben. Frag jeden UL-Fischer.',
+ 'Lieber eine feine Rute in der Hand als ein Zweihänder im Keller.',
+ 'Der Biss kommt, wenn man nicht damit rechnet. Die Heizungsstörung auch.',
+ 'Forellen beissen am besten in der Dämmerung. Mieter melden sich auch erst um 22 Uhr.',
+ 'Fliegenfischer können es länger, UL-Fischer können es schneller.',
+ 'Erst anbeissen lassen, dann sanft anschlagen. Gilt auch bei Eigentümern.',
+ 'Wer zu hart anschlägt, verliert den Fisch. Wer zu fest anzieht, den Schraubenkopf.',
+ 'Gross ist nicht immer besser. Fragt jede Bergbachforelle.',
+ 'Spinner, Blinker, Wobbler: Auch beim Hauswart gibt es für jede Gelegenheit den Richtigen.',
+ 'Die Rute gehört gepflegt, das Gewinde gut geölt.',
+ 'Heute ist ein guter Tag zum Anbeissen.',
+ 'Der Köderkasten ist voll, der Aufgabenstapel auch.',
+ 'Ein guter Hauswart kennt jedes Rohr und weiss genau, wo es tropft.',
+ 'Druck ablassen kann der Hauswart am besten.',
+ 'Gut geschmiert läuft alles. Die Heizung auch.',
+ 'Hauptsache dicht. Gilt für Rohre und für den Hauswart.',
+ 'Wer lange nicht entlüftet wird, wird gereizt. Heizkörper auch.',
+ 'Der Radiator gluckert? Entlüften hilft. Danach geht es allen besser.',
+ 'Manchmal muss man einfach den Stöpsel ziehen.',
+ 'Nicht jede Muffe ist dicht. Prüf lieber nach.',
+ 'Wer es im Keller treibt, sollte die Tür abschliessen.',
+ 'Montag: der Tag, an dem alle gleichzeitig etwas kaputt melden.',
+ 'Schlüssel verloren? Passiert den Besten. Den Zweitbesten ständig.',
+ 'Wackelkontakt: Beziehungsproblem oder Lichtschalter? Du entscheidest.',
+ 'Sicherung durch? Dann hat es wohl jemand zu heiss getrieben.',
+ 'Kein Problem ist so gross, dass man es nicht mit etwas Silikon verschmieren könnte.',
+ 'Geduld ist die Kunst, einen tropfenden Wasserhahn zu lieben.',
+ 'Heute schon geschaut, ob alles sitzt, passt und nicht wackelt?',
+ 'Kaffee rein, Probleme raus.',
+ 'Ein Hauswart sieht alles, hört alles und sagt nur: Ich schau es mir an.'
+];
+var DONEL=['Erledigt. Volltreffer.','Erledigt. Sauber angeschlagen.','Erledigt. Und es hat nicht mal getropft.','Erledigt. Schnur straff, Aufgabe im Kescher.','Erledigt. Das hat gesessen.','Erledigt. Schön eingelocht.','Erledigt. Ganz ohne Fehlbiss.'];
+var CALML=['Nichts fällig. Zeit, die Rute auszuwerfen.','Nichts fällig. Die Ruhe vor dem Biss.','Nichts fällig. Alles dicht, alles trocken, alles gut.','Nichts fällig. Heute darfst du auch mal nichts anfassen.','Nichts fällig. Der Köder ruht, die Forelle auch.'];
+function funOn(){ try{ return localStorage.getItem('stwg-fun')!=='0'; }catch(e){ return true; } }
+function dayIdx(){ var d=new Date(); return Math.floor((d-new Date(d.getFullYear(),0,0))/864e5); }
+function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
+function spruchCard(){ if(!funOn()) return ''; var i=(S.fq!=null)?S.fq:(dayIdx()%FUN.length); return '<button class="spruch" data-act="spruch" aria-label="Neuer Spruch">'+esc(FUN[i])+'</button>'; }
 function lastFri16(){ var d=new Date(); d.setHours(16,0,0,0); while(d.getDay()!==5||d>new Date()) d.setDate(d.getDate()-1); if(d.getDay()===5&&d>new Date()) d.setDate(d.getDate()-7); return d.getTime(); }
 function modeNote(){
   var has=S.units.length||S.entries.length; if(!has) return '';
@@ -926,7 +968,7 @@ function backupFooter(){
   var last=0; try{ last=+localStorage.getItem(LASTBK)||0; }catch(e){}
   var t=last?new Date(last).toLocaleDateString('de-CH')+' '+new Date(last).toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'}):'noch nie';
   return '<p class="hint" style="text-align:center;font-size:12.5px;margin:22px 0 8px">Daten nur auf diesem Gerät · letzte Sicherung: '+t+'<br>'+
-   '<button class="linkbtn" data-act="backup-save">Sichern (Mail)</button> · <button class="linkbtn" data-act="backup-file">Als Datei</button> · <button class="linkbtn" data-act="backup-load">Laden</button> · <button class="linkbtn" data-act="report-pdf">Als PDF</button> · <button class="linkbtn" data-act="backup-ics">Freitags-Erinnerung (Kalender)</button></p>';
+   '<button class="linkbtn" data-act="backup-save">Sichern (Mail)</button> · <button class="linkbtn" data-act="backup-file">Als Datei</button> · <button class="linkbtn" data-act="backup-load">Laden</button> · <button class="linkbtn" data-act="report-pdf">Als PDF</button> · <button class="linkbtn" data-act="backup-ics">Freitags-Erinnerung (Kalender)</button> · <button class="linkbtn" data-act="fun-toggle">Sprüche '+(funOn()?'aus':'an')+'</button></p>';
 }
 function icsReminder(){
   var d=new Date(); d.setHours(16,0,0,0); while(d.getDay()!==5||d<=new Date()) d.setDate(d.getDate()+1);
@@ -971,6 +1013,7 @@ function todayView(){
   var all=dueItems(), late=all.filter(function(x){ return x.n<0; }), tod=all.filter(function(x){ return x.n===0; }),
       week=all.filter(function(x){ return x.n>0&&x.n<=7; }), later=all.filter(function(x){ return x.n>7; }), dm=openDamages();
   var multi=S.units.length>1;
+  h+=spruchCard();
   h+='<section class="stats" aria-label="Übersicht">'+
     '<div class="stat'+(late.length?' bad':'')+'"><b>'+late.length+'</b><span>Überfällig</span></div>'+
     '<div class="stat"><b>'+(tod.length+week.length)+'</b><span>Diese Woche</span></div>'+
@@ -979,7 +1022,7 @@ function todayView(){
   h+=weatherCard();
   h+=mapPanel();
   h+=dueGroup('Überfällig',late,'late',multi)+dueGroup('Heute',tod,'',multi)+dueGroup('Diese Woche',week,'',multi);
-  if(!late.length&&!tod.length&&!week.length) h+='<section class="panel"><h2 class="ph2">Diese Woche</h2><p class="hint" style="padding:0 16px 16px">Nichts fällig. Alles im grünen Bereich.</p></section>';
+  if(!late.length&&!tod.length&&!week.length) h+='<section class="panel"><h2 class="ph2">Diese Woche</h2><p class="hint" style="padding:0 16px 16px">'+(funOn()?esc(CALML[dayIdx()%CALML.length]):'Nichts fällig. Alles im grünen Bereich.')+'</p></section>';
   if(dm.length) h+='<section class="panel"><h2 class="ph2">Offene Schäden<i>'+dm.length+'</i></h2>'+damageRows(dm.slice(0,8),multi)+'</section>';
   h+=dueGroup('Demnächst',later.slice(0,8),'',multi);
   h+=backupFooter();
@@ -1589,9 +1632,9 @@ function toggleEntry(id){
     body.lastDone=ymd(); body.due=nextAfterToday(e.due,e.repeat); body.status='Offen';
     toast('Erledigt. Nächstes Mal am '+fmtDate(body.due)+'.');
   }else if(e.kind==='task'){
-    body.status = e.status==='Erledigt'?'Offen':'Erledigt'; if(body.status==='Erledigt'){ body.lastDone=ymd(); toast('Erledigt.'); }
+    body.status = e.status==='Erledigt'?'Offen':'Erledigt'; if(body.status==='Erledigt'){ body.lastDone=ymd(); toast(funOn()?pick(DONEL):'Erledigt.'); }
   }else{
-    body.status = e.status==='Behoben'?'Gemeldet':'Behoben'; if(body.status==='Behoben') toast('Als behoben markiert.');
+    body.status = e.status==='Behoben'?'Gemeldet':'Behoben'; if(body.status==='Behoben') toast(funOn()?'Behoben. '+pick(['Dicht ist dicht.','Das sitzt wieder.','Wieder alles im Lot.']):'Als behoben markiert.');
   }
   saveDoc('entries',id,body).catch(function(){ toast('Speichern fehlgeschlagen.'); });
 }
@@ -1609,6 +1652,8 @@ document.addEventListener('click',function(ev){
   else if(a==='backup-load') pickBackup();
   else if(a==='backup-ics') icsReminder();
   else if(a==='quick-photo') quickPhoto();
+  else if(a==='spruch'){ var q; do{ q=Math.floor(Math.random()*FUN.length); }while(FUN.length>1&&q===S.fq); S.fq=q; render(); }
+  else if(a==='fun-toggle'){ try{ localStorage.setItem('stwg-fun',funOn()?'0':'1'); }catch(e){} render(); }
   else if(a==='report-pdf') printReport();
   else if(a==='load-example') loadExample().catch(function(){ toast('Beispiel konnte nicht geladen werden.'); });
   else if(a==='open-unit'){ S.nav='units'; S.unitId=id; S.sec=null; S.house=''; S.showDone=false; render(); window.scrollTo(0,0); }
