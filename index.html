@@ -2,6 +2,7 @@
 @media print{body.printing>*:not(#report){display:none!important} body.printing #report{display:block;color:#000;background:#fff;font:12px/1.4 system-ui,sans-serif;padding:0} #report h1{font-size:20px;margin:0} #report h2{font-size:16px;margin:16px 0 2px;border-bottom:1px solid #999;padding-bottom:2px} #report h3{font-size:13px;margin:10px 0 4px;color:#0f4c5c} .rp-unit{margin-top:14px} .rp-e{break-inside:avoid;margin:0 0 8px} .rp-e table{border-collapse:collapse;margin:2px 0} .rp-e td{padding:1px 10px 1px 0;vertical-align:top} .rp-e td:first-child{color:#555;white-space:nowrap} .rp-sub{margin:1px 0;color:#444} .rp-ph img{height:70px;margin:3px 4px 0 0;border:1px solid #ccc} @page{margin:14mm}}
 canvas[aria-label=Unterschriftsfeld]{width:100%;aspect-ratio:3/1;background:#fff;border:1px solid var(--line2);border-radius:12px;touch-action:none;display:block}.sigfoot{display:flex;justify-content:space-between;align-items:center;gap:8px}.sigfoot small{color:var(--muted)}.rp-sig img{height:50px;vertical-align:middle;border-bottom:1px solid #999}
 .sec.lv1{background:var(--pri-soft);border-color:transparent}.sec.lv2{background:var(--warn-bg);border-color:var(--warn)}.sec.lv3{background:var(--bad-bg);border-color:var(--bad)}.sec.lv2 small{color:var(--warn)}.sec.lv3 small{color:var(--bad)}
+.uh2{display:flex;align-items:center;gap:12px;min-width:0}.crest{flex:none;display:block}.crests{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.cr{position:relative;cursor:pointer;display:block}.cr input{position:absolute;opacity:0;pointer-events:none}.cr span{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;border:2px solid transparent;border-radius:12px}.cr small{font-size:11px;color:var(--muted)}.cr input:checked+span{border-color:var(--pri);background:var(--pri-soft)}.wxrow{display:flex;gap:14px;align-items:center;padding:0 16px 14px}.wxrow>b{font-size:34px;font-weight:800;font-variant-numeric:tabular-nums}.wxd{display:flex;flex-direction:column;font-size:12.5px;color:var(--muted);margin-top:2px}.wxh{margin:0 16px 14px;padding:8px 12px;border-radius:10px;background:var(--warn-bg);color:var(--warn);font-weight:600;font-size:13px}
 button.linkbtn{background:none;border:0;padding:4px 2px;color:var(--brand,#0f4c5c);text-decoration:underline;font-size:inherit;cursor:pointer}
 </style><title>STWG Verwaltung</title>
 <meta name="theme-color" content="#0f4c5c">
@@ -550,10 +551,13 @@ async function exportBackup(mode){
     var blob=new Blob([j],{type:'application/json'}), fname='stwg-sicherung-'+ymd()+'.json', done=false;
     if(mode!=='file' && navigator.share && navigator.canShare && blob.size<20*1048576){
       try{
-        var f=new File([blob],fname,{type:'application/json'});
-        if(navigator.canShare({files:[f]})){
-          await navigator.share({files:[f],title:'STWG Sicherung '+fmtDate(ymd()),text:'Sicherung der STWG-App vom '+fmtDate(ymd())});
-          done=true;
+        var cands=[[fname,'application/json'],[fname,'text/plain'],[fname.replace(/\.json$/,'.txt'),'text/plain']];
+        for(var ci=0;ci<cands.length&&!done;ci++){
+          var f=new File([blob],cands[ci][0],{type:cands[ci][1]});
+          if(navigator.canShare({files:[f]})){
+            await navigator.share({files:[f],title:'STWG Sicherung '+fmtDate(ymd()),text:'Sicherung der STWG-App vom '+fmtDate(ymd())});
+            done=true;
+          }
         }
       }catch(e){
         if(e&&e.name==='AbortError'){ toast('Abgebrochen. Die Sicherung wurde nicht gespeichert.'); return; }
@@ -592,7 +596,7 @@ async function importBackup(file){
   }catch(e){ toast(e&&e.message==='format'?'Das ist keine Sicherung dieser App.':'Einspielen fehlgeschlagen: '+(e&&e.message||e)); }
 }
 function pickBackup(){
-  var i=document.createElement('input'); i.type='file'; i.accept='.json,application/json';
+  var i=document.createElement('input'); i.type='file'; i.accept='.json,.txt,application/json,text/plain,*/*';
   i.onchange=function(){ if(i.files&&i.files[0]) importBackup(i.files[0]); }; i.click();
 }
 
@@ -800,7 +804,7 @@ function reportHtml(){
   var h='<div class="rp-head"><h1>STWG Verwaltung – Bericht</h1><p>Stand: '+esc(fmtDate(ymd()))+'</p></div>';
   var units=S.units.slice().sort(function(a,b){ return String(a.name).localeCompare(String(b.name),'de'); });
   units.forEach(function(u){
-    h+='<section class="rp-unit"><h2>'+esc(u.name)+'</h2><p class="rp-sub">'+esc([u.addr,u.ort].filter(Boolean).join(', '))+(u.count?' · '+esc(u.count)+' Einheiten':'')+'</p>';
+    h+='<section class="rp-unit"><h2>'+crest(u,26)+' '+esc(u.name)+'</h2><p class="rp-sub">'+esc([u.addr,u.ort].filter(Boolean).join(', '))+(u.count?' · '+esc(u.count)+' Einheiten':'')+'</p>';
     if(u.houses&&u.houses.length) h+='<p class="rp-sub">Häuser: '+esc(u.houses.map(function(x){return x.name;}).join(', '))+'</p>';
     if(u.contact) h+='<p class="rp-sub">Kontakt: '+esc(u.contact)+'</p>';
     if(u.notes) h+='<p>'+esc(u.notes)+'</p>';
@@ -845,6 +849,69 @@ function initSigPads(){
     cv.addEventListener('pointerup',end); cv.addEventListener('pointercancel',end);
     box.querySelector('[data-sigclear]').addEventListener('click',function(){ blank(); hid.value=''; });
   });
+}
+var SYMS={
+ mount:['Fels','<polygon points="0,50 22,10 34,30 42,20 60,50" fill="#f1ead9"/><polygon points="22,10 16,22 22,19 27,22" fill="#d9b45a"/>'],
+ falcon:['Falke','<path d="M0 14 Q14 4 30 22 Q46 4 60 14 Q50 16 38 30 L30 46 L22 30 Q10 16 0 14Z" fill="#f1ead9"/>'],
+ valley:['Tal','<polygon points="0,4 14,4 30,34 46,4 60,4 34,48 26,48" fill="#f1ead9"/><path d="M22 54 q4 -5 8 0 t8 0" fill="none" stroke="#d9b45a" stroke-width="2.5"/>'],
+ tulip:['Blume','<path d="M30 2 C14 4 12 24 22 32 C26 34 28 32 30 28 C32 32 34 34 38 32 C48 24 46 4 30 2Z" fill="#d9b45a"/><path d="M30 34 V54" stroke="#f1ead9" stroke-width="3" fill="none"/><path d="M30 46 Q42 44 44 36 Q34 38 30 46Z" fill="#f1ead9"/>'],
+ sun:['Aussicht','<path d="M0 50 Q30 20 60 50Z" fill="#f1ead9"/><path d="M18 30 A12 12 0 0 1 42 30Z" fill="#d9b45a"/><path d="M30 8 V13 M14 14 L18 18 M46 14 L42 18" stroke="#d9b45a" stroke-width="2.5" fill="none"/>'],
+ heart:['Herz','<path d="M30 46 C4 30 2 12 16 8 C24 6 29 12 30 16 C31 12 36 6 44 8 C58 12 56 30 30 46Z" fill="#d9b45a"/>'],
+ tree:['Baum','<polygon points="30,0 48,26 38,26 52,44 8,44 22,26 12,26" fill="#f1ead9"/><rect x="26" y="44" width="8" height="9" fill="#d9b45a"/>'],
+ house:['Haus','<polygon points="30,2 60,26 52,26 52,50 8,50 8,26 0,26" fill="#f1ead9"/><rect x="25" y="32" width="10" height="18" fill="#0f4c5c"/>'],
+ star:['Stern','<polygon points="30,2 37,20 56,20 41,32 47,50 30,39 13,50 19,32 4,20 23,20" fill="#d9b45a"/>'],
+ flake:['Schnee','<path d="M30 2 V50 M9 14 L51 38 M51 14 L9 38" stroke="#f1ead9" stroke-width="4" stroke-linecap="round" fill="none"/>']
+};
+var SYMKEYS=['mono','mount','falcon','valley','tulip','sun','heart','tree','house','star','flake'];
+function defaultLogo(name){ var n=String(name||'').toLowerCase().trim(), m={'crap grisch':'mount','falcun':'falcon','valetta':'valley','bellavista':'sun','cordial':'heart','tulipana':'tulip'}; return m[n]||'mono'; }
+function logoKey(u){ return (u&&u.logo&&(u.logo==='mono'||SYMS[u.logo]))?u.logo:defaultLogo(u&&u.name); }
+function crestSvg(key,initial,sz,cls){
+  var inner = key==='mono' ? '<text x="50" y="76" text-anchor="middle" font-size="48" font-weight="700" fill="#f1ead9" font-family="system-ui,sans-serif">'+esc(initial||'?')+'</text>' : '<g transform="translate(20,34)">'+SYMS[key][1]+'</g>';
+  return '<svg class="crest'+(cls?' '+cls:'')+'" width="'+sz+'" height="'+Math.round(sz*1.2)+'" viewBox="0 0 100 120" aria-hidden="true"><path d="M50 4 L92 16 V58 C92 88 70 108 50 116 C30 108 8 88 8 58 V16 Z" fill="#0f4c5c" stroke="#d9b45a" stroke-width="4"/>'+inner+'</svg>';
+}
+function crest(u,sz){ var n=String(u&&u.name||'').trim(); return crestSvg(logoKey(u),n.charAt(0).toUpperCase(),sz||40); }
+function logoPicker(u){
+  var cur=logoKey(u), ini=String(u&&u.name||'A').trim().charAt(0).toUpperCase()||'A';
+  return '<div class="fld full" style="margin-top:14px"><label>Logo (Wappen)</label><div class="crests">'+SYMKEYS.map(function(k){
+    return '<label class="cr"><input type="radio" name="logo" value="'+k+'"'+(k===cur?' checked':'')+'><span>'+crestSvg(k,ini,46)+'<small>'+(k==='mono'?'Buchstabe':SYMS[k][0])+'</small></span></label>';
+  }).join('')+'</div></div>';
+}
+function quickPhoto(){
+  if(!S.units.length){ toast('Leg zuerst eine Liegenschaft an.'); return; }
+  var i=document.createElement('input'); i.type='file'; i.accept='image/*'; i.setAttribute('capture','environment');
+  i.onchange=async function(){
+    var f=i.files&&i.files[0]; if(!f) return;
+    try{
+      var blob=await shrink(f,1600,0.85), id=await putPhoto(blob);
+      openEntryForm(null,'damage',{});
+      if(M){ M.photos.push({o:id,e:null}); M.created.push(id); renderPhotos(); }
+    }catch(e){ toast('Foto konnte nicht gelesen werden.'); }
+  };
+  i.click();
+}
+var WXC={0:'klar',1:'meist klar',2:'wechselnd bewölkt',3:'bedeckt',45:'Nebel',48:'Nebel',51:'leichter Niesel',53:'Niesel',55:'Niesel',56:'gefrierender Niesel',57:'gefrierender Niesel',61:'leichter Regen',63:'Regen',65:'starker Regen',66:'gefrierender Regen',67:'gefrierender Regen',71:'leichter Schnee',73:'Schnee',75:'starker Schnee',77:'Schneegriesel',80:'Schauer',81:'Schauer',82:'starke Schauer',85:'Schneeschauer',86:'starke Schneeschauer',95:'Gewitter',96:'Gewitter',99:'Gewitter'};
+var WXK='stwg-wx';
+function wxLoad(){ try{ var c=JSON.parse(localStorage.getItem(WXK)||'null'); if(c&&c.d) S.wx=c; }catch(e){} }
+async function wxFetch(){
+  if(navigator.onLine===false) return;
+  if(S.wx&&Date.now()-S.wx.t<45*60000) return;
+  try{
+    var r=await fetch('https://api.open-meteo.com/v1/forecast?latitude=46.83&longitude=9.28&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,snowfall_sum&timezone=Europe%2FZurich&forecast_days=3');
+    if(!r.ok) return; var d=await r.json(); if(!d||!d.current||!d.daily) return;
+    S.wx={t:Date.now(),d:d}; try{ localStorage.setItem(WXK,JSON.stringify(S.wx)); }catch(e){}
+    if(S.nav==='today'&&!M) render();
+  }catch(e){}
+}
+function weatherCard(){
+  var w=S.wx; if(!w||!w.d) return '';
+  var d=w.d, c=d.current, dy=d.daily, tag=['Heute','Morgen','Übermorgen'];
+  var hint=[]; var sn=Math.max(dy.snowfall_sum[0]||0,dy.snowfall_sum[1]||0), mn=Math.min(dy.temperature_2m_min[0],dy.temperature_2m_min[1]);
+  if(sn>=1) hint.push('Schnee erwartet ('+Math.round(sn)+' cm): Winterdienst einplanen');
+  if(mn<=0) hint.push('Frost bis '+Math.round(mn)+' °C: Glätte und Leitungen beachten');
+  var age=Date.now()-w.t, old=age>6*3600000;
+  var days=[1,2].map(function(i){ return '<span>'+tag[i]+' '+Math.round(dy.temperature_2m_min[i])+'° / '+Math.round(dy.temperature_2m_max[i])+'°, '+esc(WXC[dy.weather_code[i]]||'')+'</span>'; }).join('');
+  return '<section class="panel wx"><h2 class="ph2">Wetter Flims/Laax</h2><div class="wxrow"><b>'+Math.round(c.temperature_2m)+'°</b><div><div>'+esc(WXC[c.weather_code]||'')+', heute '+Math.round(dy.temperature_2m_min[0])+'° bis '+Math.round(dy.temperature_2m_max[0])+'°</div><div class="wxd">'+days+'</div></div></div>'+
+    (hint.length?'<div class="wxh">'+hint.map(esc).join('<br>')+'</div>':'')+(old?'<p class="hint" style="padding:0 16px 12px;margin:0">Stand: '+new Date(w.t).toLocaleString('de-CH',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})+' (kein Empfang)</p>':'')+'</section>';
 }
 function lastFri16(){ var d=new Date(); d.setHours(16,0,0,0); while(d.getDay()!==5||d>new Date()) d.setDate(d.getDate()-1); if(d.getDay()===5&&d>new Date()) d.setDate(d.getDate()-7); return d.getTime(); }
 function modeNote(){
@@ -892,7 +959,7 @@ function todayView(){
   var now=new Date();
   var h='<div class="brand"><span class="logo">'+svg(ICON.unit,18)+'</span>STWG Verwaltung</div>'+
     '<header class="top"><div><h1>'+greet()+'</h1><p class="sub">'+WDL[now.getDay()]+', '+now.getDate()+'. '+MONTHS[now.getMonth()]+' '+now.getFullYear()+'</p></div>'+
-    (S.units.length?'<button class="btn primary" data-act="quick">+ Erfassen</button>':'')+'</header>'+modeNote();
+    (S.units.length?'<button class="btn primary" data-act="quick">+ Erfassen</button>':'')+'</header>'+(S.units.length?'<div class="actions" style="margin:-4px 0 12px"><button class="btn" data-act="quick-photo">Schaden fotografieren</button></div>':'')+modeNote();
   if(S.err) h+='<div class="note">Die Daten konnten nicht gelesen werden ('+esc(S.err)+'). Bitte Seite neu laden.</div>';
   if(!S.units.length){
     return h+'<div class="empty"><h2>Willkommen</h2>'+
@@ -907,6 +974,7 @@ function todayView(){
     '<div class="stat"><b>'+(tod.length+week.length)+'</b><span>Diese Woche</span></div>'+
     '<div class="stat'+(dm.length?' warn':'')+'"><b>'+dm.length+'</b><span>Offene Schäden</span></div>'+
     '<div class="stat"><b>'+hrs(sumHours('',ymd().slice(0,7)))+'</b><span>Stunden im '+MONTHS[now.getMonth()]+'</span></div></section>';
+  h+=weatherCard();
   h+=mapPanel();
   h+=dueGroup('Überfällig',late,'late',multi)+dueGroup('Heute',tod,'',multi)+dueGroup('Diese Woche',week,'',multi);
   if(!late.length&&!tod.length&&!week.length) h+='<section class="panel"><h2 class="ph2">Diese Woche</h2><p class="hint" style="padding:0 16px 16px">Nichts fällig. Alles im grünen Bereich.</p></section>';
@@ -922,7 +990,7 @@ function unitsView(){
   S.units.slice().sort(function(a,b){ return String(a.name).localeCompare(String(b.name),'de'); }).forEach(function(u){
     var due=dueItems(u.id), late=due.filter(function(x){ return x.n<0; }).length, wk=due.filter(function(x){ return x.n>=0&&x.n<=7; }).length, dm=openDamages(u.id).length;
     var tk=S.entries.filter(function(e){ return e.unit===u.id&&e.kind==='task'&&isOpen(e); }).length;
-    h+='<button class="unit" data-act="open-unit" data-id="'+esc(u.id)+'"><div class="uhead">'+kindTile('unit')+'<div style="min-width:0"><h3>'+esc(u.name)+'</h3>'+(u.addr?'<div class="addr">'+esc(u.addr)+'</div>':'')+
+    h+='<button class="unit" data-act="open-unit" data-id="'+esc(u.id)+'"><div class="uhead">'+crest(u,40)+'<div style="min-width:0"><h3>'+esc(u.name)+'</h3>'+(u.addr?'<div class="addr">'+esc(u.addr)+'</div>':'')+
       ((u.houses&&u.houses.length)?'<div class="addr">'+esc(u.houses.map(function(x){ return x.name; }).join(', '))+'</div>':'')+'</div></div>'+
       '<div class="counts">'+(late?'<span class="pill bad">'+late+' überfällig</span>':'')+(wk?'<span class="pill warn">'+wk+' diese Woche</span>':'')+(dm?'<span class="pill kp k-damage">'+dm+(dm===1?' Schaden':' Schäden')+'</span>':'')+
       '<span class="pill">'+tk+(tk===1?' Aufgabe offen':' Aufgaben offen')+'</span>'+(!late&&!wk&&!dm?'<span class="pill good">Alles im Griff</span>':'')+'</div></button>';
@@ -955,7 +1023,7 @@ function secInfo(k,list){
 function unitView(u){
   var all=S.entries.filter(function(e){ return e.unit===u.id; });
   var h='<div class="crumb"><button class="btn small ghost" data-act="back">‹ Liegenschaften</button></div>'+
-    '<header class="top"><div><h1>'+esc(u.name)+'</h1>'+(u.addr?'<p class="sub">'+esc(u.addr)+'</p>':'')+'</div><div class="actions"><button class="btn" data-act="edit-unit">Bearbeiten</button>'+(mapImgId()?'<button class="btn" data-act="map-place-from" data-id="'+esc(u.id)+'">Auf Karte setzen</button>':'')+'<button class="btn primary" data-act="quick">+ Erfassen</button></div></header>'+modeNote();
+    '<header class="top"><div class="uh2">'+crest(u,46)+'<div><h1>'+esc(u.name)+'</h1>'+(u.addr?'<p class="sub">'+esc(u.addr)+'</p>':'')+'</div></div><div class="actions"><button class="btn" data-act="edit-unit">Bearbeiten</button>'+(mapImgId()?'<button class="btn" data-act="map-place-from" data-id="'+esc(u.id)+'">Auf Karte setzen</button>':'')+'<button class="btn primary" data-act="quick">+ Erfassen</button></div></header>'+modeNote();
   var bits=[]; if(u.houses&&u.houses.length) bits.push(u.houses.map(function(x){ return x.name; }).join(', ')); if(u.count) bits.push(u.count+' Wohnungen'); if(u.contact) bits.push(u.contact);
   if(bits.length||u.notes) h+='<div class="info">'+(bits.length?'<div class="meta">'+bits.map(function(b){ return '<span>'+esc(b)+'</span>'; }).join('')+'</div>':'')+(u.notes?'<div class="nt">'+esc(u.notes)+'</div>':'')+'</div>';
   var sos=all.filter(function(e){ return e.kind==='contact' && (e.cat==='Notfall'||e.phone2) && (e.phone2||e.phone); });
@@ -1227,13 +1295,13 @@ function readHouses(){
   }); return out;
 }
 function openUnitForm(u){
-  openForm({title:u?'STWG bearbeiten':'Neue STWG', kind:'unit', fields:UNIT_FIELDS, values:u||{}, extraHTML:housesEditor(u?u.houses:[]),
+  openForm({title:u?'STWG bearbeiten':'Neue STWG', kind:'unit', fields:UNIT_FIELDS, values:u||{}, extraHTML:housesEditor(u?u.houses:[])+logoPicker(u),
     onSave:async function(v){
       var id=u?u.id:newId();
       var hs=readHouses(), keep={}; hs.forEach(function(x){ keep[x.id]=1; });
       if(!v.ort) v.ort=guessOrt(v.addr);
       var pos=u?{mx:u.mx,my:u.my}:{};
-      var doc=Object.assign({},v,pos,{houses:hs,created:u&&u.created||Date.now()});
+      var lg=document.querySelector('input[name=logo]:checked'); var doc=Object.assign({},v,pos,{logo:lg?lg.value:((u&&u.logo)||''),houses:hs,created:u&&u.created||Date.now()});
       Object.keys(doc).forEach(function(k){ if(doc[k]===undefined) delete doc[k]; });
       await saveDoc('units',id,doc);
       if(u){
@@ -1538,6 +1606,7 @@ document.addEventListener('click',function(ev){
   else if(a==='backup-file') exportBackup('file');
   else if(a==='backup-load') pickBackup();
   else if(a==='backup-ics') icsReminder();
+  else if(a==='quick-photo') quickPhoto();
   else if(a==='report-pdf') printReport();
   else if(a==='load-example') loadExample().catch(function(){ toast('Beispiel konnte nicht geladen werden.'); });
   else if(a==='open-unit'){ S.nav='units'; S.unitId=id; S.sec=null; S.house=''; S.showDone=false; render(); window.scrollTo(0,0); }
@@ -1628,7 +1697,8 @@ async function init(){
     S.units=local.units.slice(); S.entries=local.entries.slice(); S.settings=local.settings.slice(); S.mode='local';
     if(navigator.storage&&navigator.storage.persist) navigator.storage.persist().catch(function(){});
   }catch(e){ S.err='Speicher des Browsers nicht verfügbar (privater Modus?)'; }
-  S.ready=true; render();
+  S.ready=true; wxLoad(); render(); wxFetch();
+  document.addEventListener('visibilitychange',function(){ if(!document.hidden) wxFetch(); });
 }
 if('serviceWorker' in navigator) window.addEventListener('load',function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
 init();
