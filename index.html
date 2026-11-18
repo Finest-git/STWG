@@ -528,7 +528,7 @@ async function delDoc(col,id){
   local[col]=local[col].filter(function(x){ return x.id!==id; });
   S[col]=local[col].slice(); render();
 }
-function photoSrc(id){ id=String(id); return id.indexOf('data:')===0 ? id : (URLS[id]||''); }
+function photoSrc(id){ id=String(id); if(id==='builtin') return 'karte.jpg'; return id.indexOf('data:')===0 ? id : (URLS[id]||''); }
 function newId(){ return 'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
 async function putPhoto(blob){
   var id=newId();
@@ -606,7 +606,7 @@ function pickBackup(){
    (z. B. aus Google Maps). Er wird in der App gespeichert, du kannst hineinzoomen und die Liegenschaften per Tipp platzieren. */
 var SATV={root:null,pins:[],off:[],raf:0,nw:0,nh:0,imgId:'',img:null,failed:false};
 function guessOrt(addr){ var m=String(addr||'').match(/flims|laax|trin/i); if(!m) return ''; var s=m[0].toLowerCase(); return s==='flims'?'Flims':s==='laax'?'Laax':'Trin'; }
-function mapImgId(){ var r=(S.settings||[]).filter(function(x){ return x.id==='map'; })[0]; return (r&&r.img)||''; }
+function mapImgId(){ var r=(S.settings||[]).filter(function(x){ return x.id==='map'; })[0]; return (r&&r.img)||'builtin'; }
 function unitStatus(u){
   var due=dueItems(u.id), late=due.filter(function(x){ return x.n<0; }).length, wk=due.filter(function(x){ return x.n>=0&&x.n<=7; }).length;
   var dm=openDamages(u.id), hi=dm.filter(function(e){ return e.sev==='Hoch'; }).length;
@@ -652,7 +652,7 @@ function mapPanel(){
   return '<section class="satbox" aria-label="Karte der Liegenschaften"><div id="sat" class="sat'+(S.placing?' placing':'')+'" role="application" aria-label="Luftbild, ziehen zum Verschieben"></div><div id="mapui">'+mapUIHTML()+'</div>'+head+'</section>';
 }
 function satSchedule(){ if(SATV.raf) return; SATV.raf=requestAnimationFrame(function(){ SATV.raf=0; satDraw(); }); }
-function satScale(){ var el=SATV.root; return Math.min(el.clientWidth/SATV.nw, el.clientHeight/SATV.nh)*S.mv.z; }
+function satScale(){ var el=SATV.root; return Math.max(el.clientWidth/SATV.nw, el.clientHeight/SATV.nh)*S.mv.z; }
 function satDraw(){
   var el=SATV.root; if(!el||!el.isConnected||!S.mv||!SATV.nw) return;
   var w=el.clientWidth, h=el.clientHeight; if(!w||!h) return;
@@ -663,10 +663,17 @@ function satDraw(){
     p.style.transform='translate3d('+(w/2+(parseFloat(p.getAttribute('data-x'))-V.cx)*W).toFixed(1)+'px,'+(h/2+(parseFloat(p.getAttribute('data-y'))-V.cy)*H).toFixed(1)+'px,0)';
   });
 }
-function satClamp(){ var V=S.mv; V.cx=Math.max(0,Math.min(1,V.cx)); V.cy=Math.max(0,Math.min(1,V.cy)); V.z=Math.max(0.6,Math.min(24,V.z)); }
+var ZMAX=3;
+function satClamp(){
+  var V=S.mv, el=SATV.root; V.z=Math.max(1,Math.min(ZMAX,V.z));
+  if(!el||!SATV.nw||!el.clientWidth){ V.cx=Math.max(0,Math.min(1,V.cx)); V.cy=Math.max(0,Math.min(1,V.cy)); return; }
+  var w=el.clientWidth,h=el.clientHeight,sc=Math.max(w/SATV.nw,h/SATV.nh)*V.z,W=SATV.nw*sc,H=SATV.nh*sc;
+  var hx=Math.min(.5,w/2/W), hy=Math.min(.5,h/2/H);
+  V.cx=Math.max(hx,Math.min(1-hx,V.cx)); V.cy=Math.max(hy,Math.min(1-hy,V.cy));
+}
 function satZoomAt(px,py,nz){
-  var el=SATV.root, V=S.mv, w=el.clientWidth, h=el.clientHeight, b=Math.min(w/SATV.nw,h/SATV.nh);
-  nz=Math.max(0.6,Math.min(24,nz));
+  var el=SATV.root, V=S.mv, w=el.clientWidth, h=el.clientHeight, b=Math.max(w/SATV.nw,h/SATV.nh);
+  nz=Math.max(1,Math.min(ZMAX,nz));
   var sc=b*V.z, fx=V.cx+(px-w/2)/(SATV.nw*sc), fy=V.cy+(py-h/2)/(SATV.nh*sc), sc2=b*nz;
   S.mv={cx:fx-(px-w/2)/(SATV.nw*sc2), cy:fy-(py-h/2)/(SATV.nh*sc2), z:nz}; satClamp();
 }
@@ -675,12 +682,12 @@ function initSat(){
   var el=$('#sat'); SATV.root=el||null; if(!el) return;
   var id=mapImgId();
   if(SATV.imgId!==id){ SATV.imgId=id; SATV.nw=0; SATV.nh=0; SATV.failed=false; S.mv=null; }
-  el.innerHTML='<div class="tl"><img class="im" alt="Luftbild" draggable="false"></div><div class="ov"></div><div class="zb"><button class="zbtn" data-act="sat-zin" aria-label="Hineinzoomen">+</button><button class="zbtn" data-act="sat-zout" aria-label="Herauszoomen">−</button><button class="zbtn" data-act="sat-fit" aria-label="Ganzes Bild zeigen" title="Ganzes Bild">◎</button></div><div class="nosat" hidden>Das Kartenbild konnte nicht geladen werden. Wähle es unten über «Kartenbild ändern» noch einmal aus.</div>';
+  el.innerHTML='<div class="tl"><img class="im" alt="Luftbild" draggable="false"></div><div class="ov"></div><div class="zb"><button class="zbtn" data-act="sat-zin" aria-label="Hineinzoomen">+</button><button class="zbtn" data-act="sat-zout" aria-label="Herauszoomen">−</button><button class="zbtn" data-act="sat-fit" aria-label="Ganzes Bild zeigen" title="Ganzes Bild">◎</button><button class="zbtn" data-act="sat-big" aria-label="Karte grösser oder kleiner" title="Karte grösser">⤢</button></div><div class="nosat" hidden>Das Kartenbild konnte nicht geladen werden. Wähle es unten über «Kartenbild ändern» noch einmal aus.</div>';
   el.querySelector('.ov').innerHTML=SATV.pins.slice().sort(function(a,b){ return a.y-b.y; }).map(function(x){
     return '<div class="pin" data-x="'+x.x+'" data-y="'+x.y+'">'+pinHTML(x.u,x.st,S.mapSel===x.u.id)+'</div>';
   }).join('');
   var im=el.querySelector('.im');
-  var ready=function(){ SATV.nw=im.naturalWidth; SATV.nh=im.naturalHeight; el.style.height=Math.max(280,Math.min(540,Math.round(el.clientWidth*SATV.nh/SATV.nw)))+'px'; if(!S.mv) S.mv={cx:.5,cy:.5,z:1}; satDraw(); };
+  var ready=function(){ SATV.nw=im.naturalWidth; SATV.nh=im.naturalHeight; el.style.height=(S.mapBig?Math.round(window.innerHeight*0.62):Math.max(250,Math.round(el.clientWidth*SATV.nh/SATV.nw)))+'px'; if(!S.mv) S.mv={cx:.5,cy:.5,z:1}; satClamp(); satDraw(); };
   im.onload=ready; im.onerror=function(){ SATV.failed=true; el.querySelector('.nosat').hidden=false; };
   im.src=photoSrc(id);
   if(im.complete && im.naturalWidth) ready();
@@ -990,6 +997,15 @@ function funOn(){ try{ return localStorage.getItem('stwg-fun')!=='0'; }catch(e){
 function dayIdx(){ var d=new Date(); return Math.floor((d-new Date(d.getFullYear(),0,0))/864e5); }
 function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
 function spruchCard(){ if(!funOn()) return ''; if(S.fq==null) newSpruch(); var i=S.fq; return '<button class="spruch" data-act="spruch" aria-label="Neuer Spruch">'+esc(FUN[i])+'</button>'; }
+async function mapMigrate(){
+  var ver=''; try{ ver=localStorage.getItem('stwg-mapver')||''; }catch(e){}
+  if(ver==='k2') return;
+  var md=(S.settings||[]).filter(function(x){ return x.id==='map'; })[0];
+  if(md){ var old=md.img; await delDoc('settings','map'); if(old&&old!=='builtin') await dropPhoto(old); }
+  var us=S.units.filter(function(u){ return u.mx!==undefined||u.my!==undefined; });
+  for(var i=0;i<us.length;i++){ var body=Object.assign({},us[i]); delete body.id; delete body.mx; delete body.my; await saveDoc('units',us[i].id,body); }
+  try{ localStorage.setItem('stwg-mapver','k2'); }catch(e){}
+}
 function lastFri16(){ var d=new Date(); d.setHours(16,0,0,0); while(d.getDay()!==5||d>new Date()) d.setDate(d.getDate()-1); if(d.getDay()===5&&d>new Date()) d.setDate(d.getDate()-7); return d.getTime(); }
 function modeNote(){
   var has=S.units.length||S.entries.length; if(!has) return '';
@@ -1686,6 +1702,7 @@ document.addEventListener('click',function(ev){
   else if(a==='backup-load') pickBackup();
   else if(a==='backup-ics') icsReminder();
   else if(a==='quick-photo') quickPhoto();
+  else if(a==='sat-big'){ S.mapBig=!S.mapBig; S.mv=null; SATV.imgId=null; render(); }
   else if(a==='spruch'){ newSpruch(); render(); }
   else if(a==='fun-toggle'){ try{ localStorage.setItem('stwg-fun',funOn()?'0':'1'); }catch(e){} render(); }
   else if(a==='report-pdf') printReport();
@@ -1778,6 +1795,7 @@ async function init(){
     S.units=local.units.slice(); S.entries=local.entries.slice(); S.settings=local.settings.slice(); S.mode='local';
     if(navigator.storage&&navigator.storage.persist) navigator.storage.persist().catch(function(){});
   }catch(e){ S.err='Speicher des Browsers nicht verfügbar (privater Modus?)'; }
+  try{ await mapMigrate(); }catch(e){}
   S.ready=true; wxLoad(); render(); wxFetch();
   document.addEventListener('visibilitychange',function(){ if(!document.hidden){ wxFetch(); if(S.nav==='today'&&funOn()&&!M){ newSpruch(); render(); } } });
   setInterval(function(){ if(!funOn()||S.nav!=='today'||M||document.hidden) return; var el=document.querySelector('.spruch'); if(!el) return; newSpruch(); el.textContent=FUN[S.fq]; },30000);
