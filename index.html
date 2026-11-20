@@ -577,6 +577,25 @@ async function exportBackup(mode){
 async function importBackup(file){
   try{
     var txt=(await file.text()).replace(/^\uFEFF/,''), j; try{ j=JSON.parse(txt); }catch(pe){ toast('Datei ist unvollständig oder beschädigt ('+Math.round(file.size/1024)+' KB). Bitte neu übertragen.'); return; }
+    if(j&&j.app==='stwg-verwaltung'&&j.merge&&Array.isArray(j.entries)){
+      var cnt=0, dup=0, miss={};
+      var plan=[];
+      j.entries.forEach(function(x){
+        var un=String(x.unitName||'').toLowerCase(), u=null;
+        S.units.forEach(function(q){ if(String(q.name||'').toLowerCase()===un) u=q; });
+        if(!u){ miss[x.unitName]=1; return; }
+        var hid=''; if(x.house){ (u.houses||[]).forEach(function(h){ if(String(h.name).toLowerCase()===String(x.house).toLowerCase()) hid=h.id; }); }
+        var same=S.entries.some(function(e){ return e.unit===u.id&&e.kind===x.kind&&e.title===x.title&&e.flat===x.flat; });
+        if(same){ dup++; return; }
+        var o={}; Object.keys(x).forEach(function(k){ if(k!=='unitName'&&k!=='house') o[k]=x[k]; });
+        o.unit=u.id; o.house=hid; o.created=Date.now(); o.updated=Date.now(); plan.push(o);
+      });
+      var ms=Object.keys(miss);
+      if(!plan.length){ toast(ms.length?'Liegenschaft nicht gefunden: '+ms.join(', ')+'.':'Alles schon vorhanden ('+dup+' Einträge).'); return; }
+      if(!window.confirm(plan.length+' Einträge dazufügen? Deine bestehenden Daten bleiben unverändert.'+(dup?'\n'+dup+' schon vorhanden, werden übersprungen.':'')+(ms.length?'\nNicht gefunden: '+ms.join(', ')+'.':''))) return;
+      for(var pi=0;pi<plan.length;pi++){ await saveDoc('entries',newId(),plan[pi]); cnt++; }
+      toast(cnt+' Einträge dazugefügt.'+(ms.length?' Nicht gefunden: '+ms.join(', ')+'.':'')); return;
+    }
     if(!j||j.app!=='stwg-verwaltung'||!j.units||!j.entries) throw new Error('format');
     var n=j.units.length+' STWG, '+j.entries.length+' Einträge, '+(j.photos||[]).length+' Fotos';
     if(S.units.length||S.entries.length){ if(!window.confirm('Sicherung einspielen ('+n+')? Die jetzt gespeicherten Daten auf diesem Gerät werden dabei ersetzt.')) return; }
@@ -999,12 +1018,12 @@ function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
 function spruchCard(){ if(!funOn()) return ''; if(S.fq==null) newSpruch(); var i=S.fq; return '<button class="spruch" data-act="spruch" aria-label="Neuer Spruch">'+esc(FUN[i])+'</button>'; }
 async function mapMigrate(){
   var ver=''; try{ ver=localStorage.getItem('stwg-mapver')||''; }catch(e){}
-  if(ver==='k2') return;
+  if(ver==='k3') return;
   var md=(S.settings||[]).filter(function(x){ return x.id==='map'; })[0];
   if(md){ var old=md.img; await delDoc('settings','map'); if(old&&old!=='builtin') await dropPhoto(old); }
   var us=S.units.filter(function(u){ return u.mx!==undefined||u.my!==undefined; });
   for(var i=0;i<us.length;i++){ var body=Object.assign({},us[i]); delete body.id; delete body.mx; delete body.my; await saveDoc('units',us[i].id,body); }
-  try{ localStorage.setItem('stwg-mapver','k2'); }catch(e){}
+  try{ localStorage.setItem('stwg-mapver','k3'); }catch(e){}
 }
 function lastFri16(){ var d=new Date(); d.setHours(16,0,0,0); while(d.getDay()!==5||d>new Date()) d.setDate(d.getDate()-1); if(d.getDay()===5&&d>new Date()) d.setDate(d.getDate()-7); return d.getTime(); }
 function modeNote(){
