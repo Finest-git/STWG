@@ -1036,6 +1036,29 @@ async function mapMigrate(){
   for(var i=0;i<us.length;i++){ var body=Object.assign({},us[i]); delete body.id; delete body.mx; delete body.my; await saveDoc('units',us[i].id,body); }
   try{ localStorage.setItem('stwg-mapver','k5'); }catch(e){}
 }
+function icsEsc(t){ return String(t==null?'':t).replace(/\\/g,'\\\\').replace(/\r?\n/g,'\\n').replace(/([,;])/g,'\\$1'); }
+function entryIcs(e){
+  var u=unitById(e.unit), p=function(n){ return (n<10?'0':'')+n; };
+  var d=String(e.date||'').split('-'); if(d.length!==3) return '';
+  var L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//STWG//DE','BEGIN:VEVENT','UID:stwg-'+e.id+'@local','DTSTAMP:'+new Date().toISOString().replace(/[-:]/g,'').slice(0,15)+'Z'];
+  var tm=String(e.time||'').match(/^(\d{1,2}):(\d{2})/);
+  if(tm){ var st=new Date(+d[0],+d[1]-1,+d[2],+tm[1],+tm[2]), en=new Date(st.getTime()+3600000);
+    var f=function(x){ return x.getFullYear()+p(x.getMonth()+1)+p(x.getDate())+'T'+p(x.getHours())+p(x.getMinutes())+'00'; };
+    L.push('DTSTART:'+f(st),'DTEND:'+f(en)); }
+  else { var a=new Date(+d[0],+d[1]-1,+d[2]), b=new Date(+d[0],+d[1]-1,+d[2]+1);
+    var g=function(x){ return x.getFullYear()+p(x.getMonth()+1)+p(x.getDate()); };
+    L.push('DTSTART;VALUE=DATE:'+g(a),'DTEND;VALUE=DATE:'+g(b)); }
+  L.push('SUMMARY:'+icsEsc((e.title||'Termin')+(u?' ('+u.name+')':'')));
+  if(e.place) L.push('LOCATION:'+icsEsc(e.place));
+  var ds=[e.who&&('Teilnehmende/Firma: '+e.who), e.notes].filter(Boolean).join('\n'); if(ds) L.push('DESCRIPTION:'+icsEsc(ds));
+  L.push('BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+icsEsc('Morgen: '+(e.title||'Termin')),tm?'TRIGGER:-P1D':'TRIGGER:-PT15H','END:VALARM','END:VEVENT','END:VCALENDAR');
+  return L.join('\r\n');
+}
+function exportEntryIcs(id){
+  var e=entryById(id); if(!e) return; var ics=entryIcs(e); if(!ics){ toast('Der Termin hat kein Datum.'); return; }
+  var url=URL.createObjectURL(new Blob([ics],{type:'text/calendar;charset=utf-8'})); var a=document.createElement('a'); a.href=url; a.download='termin-'+String(e.title||'termin').replace(/[^\w\-]+/g,'_').slice(0,30)+'.ics'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(url); },4000);
+  toast('Öffne die Datei, dann trägt dein Kalender den Termin mit Erinnerung 1 Tag vorher ein.');
+}
 function lastFri16(){ var d=new Date(); d.setHours(16,0,0,0); while(d.getDay()!==5||d>new Date()) d.setDate(d.getDate()-1); if(d.getDay()===5&&d>new Date()) d.setDate(d.getDate()-7); return d.getTime(); }
 function modeNote(){
   var has=S.units.length||S.entries.length; if(!has) return '';
@@ -1047,7 +1070,7 @@ function backupFooter(){
   var last=0; try{ last=+localStorage.getItem(LASTBK)||0; }catch(e){}
   var t=last?new Date(last).toLocaleDateString('de-CH')+' '+new Date(last).toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'}):'noch nie';
   return '<p class="hint" style="text-align:center;font-size:12.5px;margin:22px 0 8px">Daten nur auf diesem Gerät · letzte Sicherung: '+t+'<br>'+
-   '<button class="linkbtn" data-act="backup-save">Sichern (Mail)</button> · <button class="linkbtn" data-act="backup-file">Als Datei</button> · <button class="linkbtn" data-act="backup-load">Laden</button> · <button class="linkbtn" data-act="report-pdf">Als PDF</button> · <button class="linkbtn" data-act="backup-ics">Freitags-Erinnerung (Kalender)</button> · <button class="linkbtn" data-act="fun-toggle">Sprüche '+(funOn()?'aus':'an')+'</button></p>';
+   '<button class="linkbtn" data-act="backup-file">Als Datei</button> · <button class="linkbtn" data-act="backup-load">Laden</button> · <button class="linkbtn" data-act="report-pdf">Als PDF</button> · <button class="linkbtn" data-act="backup-ics">Freitags-Erinnerung (Kalender)</button> · <button class="linkbtn" data-act="fun-toggle">Sprüche '+(funOn()?'aus':'an')+'</button></p>';
 }
 function icsReminder(){
   var d=new Date(); d.setHours(16,0,0,0); while(d.getDay()!==5||d<=new Date()) d.setDate(d.getDate()+1);
@@ -1460,7 +1483,7 @@ function openEntryForm(e,kind,opts){
   if(!e && S.house && S.nav==='units' && unitId===S.unitId && fields.some(function(f){ return f.k==='house'; })) def.house=S.house;
   if(needSel){ fields=[{k:'unitSel',l:'STWG',t:'select',o:S.units.map(function(u){ return [u.id,u.name]; }),full:1}].concat(fields); def.unitSel=S.units[0].id; }
   var un=unitById(unitId);
-  openForm({title:(e?K.one+' bearbeiten':'Neu: '+K.one), sub:(un&&S.units.length>1?un.name:''), kind:kk, fields:fields, values:e?e:def, photos:e?(e.photos||[]):[],
+  openForm({title:(e?K.one+' bearbeiten':'Neu: '+K.one), sub:(un&&S.units.length>1?un.name:''), kind:kk, fields:fields, values:e?e:def, photos:e?(e.photos||[]):[], extraHTML:(e&&kk==='appointment'&&e.date)?'<div style="margin:10px 0"><button class="btn" data-act="ics-entry" data-id="'+esc(e.id)+'">In Kalender eintragen (Erinnerung 1 Tag vorher)</button><p class="hint">Es wird der zuletzt gespeicherte Stand eingetragen.</p></div>':'',
     onSave:async function(v,photos){
       var id=e?e.id:newId(), uid=e?e.unit:(unitId||v.unitSel);
       delete v.unitSel;
@@ -1745,6 +1768,7 @@ document.addEventListener('click',function(ev){
   else if(a==='house'){ S.house=id||''; render(); }
   else if(a==='edit-unit') openUnitForm(unitById(S.unitId));
   else if(a==='new-entry') openEntryForm(null,S.sec);
+  else if(a==='ics-entry') exportEntryIcs(id);
   else if(a==='edit-entry' || a==='open-entry' || a==='cal-item'){ var e=entryById(id); if(e && KINDS[e.kind]) openEntryForm(e); }
   else if(a==='toggle') toggleEntry(id);
   else if(a==='serviced'){
