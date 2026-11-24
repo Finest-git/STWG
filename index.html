@@ -144,6 +144,7 @@ button{-webkit-tap-highlight-color:transparent}
 .hn{color:var(--ink);font-weight:700}
 .pills{display:flex;gap:6px;flex-wrap:wrap;align-items:flex-start;align-content:flex-start}
 .nt{color:var(--muted);font-size:13.5px;overflow-wrap:anywhere;white-space:pre-line}
+.nt.scr{max-height:9.5em;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;padding-right:6px;border-right:3px solid var(--line,#8884);border-radius:2px}
 .check{flex:0 0 auto;width:44px;height:44px;margin:-2px -4px -2px 0;background:none;border:0;cursor:pointer;display:grid;place-items:center}
 .check span{width:28px;height:28px;border-radius:50%;border:2px solid var(--line2);background:var(--surface);display:grid;place-items:center;font-size:15px;font-weight:800;line-height:1;color:transparent}
 .check:hover span{border-color:var(--good);background:var(--good-bg)}
@@ -1251,7 +1252,7 @@ function entryHTML(e,showUnit){
   var chk=(k==='task'||k==='damage')?checkBtn(e,done):'';
   return '<div class="entry k-'+k+' '+(done?'done':'')+'">'+kindTile(k)+'<div class="body"><button class="main" data-act="edit-entry" data-id="'+esc(e.id)+'"><b>'+esc(e.title)+'</b>'+
     (meta.length?'<div class="meta">'+meta.join('')+'</div>':'')+(pills.length?'<div class="pills">'+pills.join('')+'</div>':'')+
-    (e.notes?'<div class="nt">'+esc(String(e.notes).slice(0,160))+(String(e.notes).length>160?' …':'')+'</div>':'')+th+'</button>'+(extra?'<div class="contact">'+extra+'</div>':'')+'</div>'+chk+'</div>';
+    (e.notes?'<div class="nt'+(String(e.notes).length>160||String(e.notes).split('\n').length>6?' scr':'')+'">'+esc(String(e.notes))+'</div>':'')+th+'</button>'+(extra?'<div class="contact">'+extra+'</div>':'')+'</div>'+chk+'</div>';
 }
 /* Suche und Telefonbuch */
 var SEARCH_KEYS=['title','area','notes','phone','phone2','mail','person','holder','nr','maker','provider','partner','flat','tenant','cat','place','who','firm','type'];
