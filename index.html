@@ -366,6 +366,9 @@ var KINDS={
     {k:'prio',l:'Priorität',t:'select',o:['Normal','Hoch','Niedrig']},
     {k:'status',l:'Status',t:'select',o:['Offen','In Arbeit','Erledigt']},
     {k:'who',l:'Zuständig',t:'text'},
+    {k:'hours',l:'Aufgewendete Stunden',t:'num',ph:'z. B. 1.5'},
+    {k:'wdate',l:'Gearbeitet am (sonst Fälligkeit)',t:'date'},
+    {k:'rep',l:'Stunden im Rapport zählen',t:'select',o:['Ja','Nein']},
     {k:'notes',l:'Notizen',t:'area',full:1}]},
   damage:{label:'Schäden & Mängel', one:'Schaden', date:'date', desc:1, fields:[
     {k:'title',l:'Schaden / Mangel',t:'text',req:1,full:1,ph:'z. B. Wasserfleck an der Decke'},
@@ -377,6 +380,10 @@ var KINDS={
     {k:'insured',l:'Versicherung gemeldet',t:'select',o:['Nein','Ja']},
     {k:'firm',l:'Beauftragte Firma',t:'text'},
     {k:'cost',l:'Geschätzte Kosten (CHF)',t:'num'},
+
+    {k:'hours',l:'Aufgewendete Stunden',t:'num',ph:'z. B. 1.5'},
+    {k:'wdate',l:'Gearbeitet am (sonst Fälligkeit)',t:'date'},
+    {k:'rep',l:'Stunden im Rapport zählen',t:'select',o:['Ja','Nein']},
     {k:'notes',l:'Beschreibung / Notizen',t:'area',full:1}]},
   appointment:{label:'Termine', one:'Termin', date:'date', fields:[
     {k:'title',l:'Termin',t:'text',req:1,full:1,ph:'z. B. Liftservice, Eigentümerversammlung'},
@@ -596,7 +603,7 @@ async function importBackup(file){
       if(!window.confirm(plan.length+' Einträge dazufügen'+(fixes.length?' und bei '+fixes.length+' vorhandenen das Haus setzen':'')+'? Deine bestehenden Daten bleiben unverändert.'+(dup?'\n'+dup+' schon vorhanden, werden übersprungen.':'')+(ms.length?'\nNicht gefunden: '+ms.join(', ')+'.':''))) return;
       for(var pi=0;pi<plan.length;pi++){ await saveDoc('entries',newId(),plan[pi]); cnt++; }
       for(var fi=0;fi<fixes.length;fi++){ await saveDoc('entries',fixes[fi].id,fixes[fi]); }
-      toast(cnt+' Einträge dazugefügt'+(fixes.length?', '+fixes.length+' Häuser gesetzt':'')+'.'+(ms.length?' Nicht gefunden: '+ms.join(', ')+'.':'')); return;
+      try{ render(); }catch(_){} toast(cnt+' Einträge dazugefügt'+(fixes.length?', '+fixes.length+' Häuser gesetzt':'')+'.'+(ms.length?' Nicht gefunden: '+ms.join(', ')+'.':'')); return;
     }
     if(!j||j.app!=='stwg-verwaltung'||!j.units||!j.entries) throw new Error('format');
     var n=j.units.length+' STWG, '+j.entries.length+' Einträge, '+(j.photos||[]).length+' Fotos';
@@ -777,8 +784,10 @@ async function locate(){ return false; }
 
 /* ---------- Auswertungen ---------- */
 function hrs(n){ return Number(n||0).toLocaleString('de-CH',{maximumFractionDigits:2}); }
-function sumHours(unitId,pref){
-  var s=0; S.entries.forEach(function(e){ if(e.kind==='log' && unitById(e.unit) && (!unitId||e.unit===unitId) && String(e.date||'').indexOf(pref)===0) s+=Number(e.hours)||0; });
+function hourDate(e){ return e.kind==='log'?(e.date||''):(e.wdate||eDate(e)||''); }
+function hourCounts(e){ return e.kind==='log' || ((e.kind==='task'||e.kind==='damage') && e.rep!=='Nein'); }
+function sumHours(unitId,pref,house){
+  var s=0; S.entries.forEach(function(e){ if(hourCounts(e) && unitById(e.unit) && (!unitId||e.unit===unitId) && (!house||e.house===house) && String(hourDate(e)).indexOf(pref)===0) s+=Number(e.hours)||0; });
   return s;
 }
 function dueItems(unitId){
@@ -845,7 +854,7 @@ function reportHtml(){
       list.forEach(function(e){
         h+='<div class="rp-e"><b>'+esc(e.title||'(ohne Titel)')+'</b>';
         var rows=[], sigs=[]; if(e.house){ var hn=houseOf(u,e.house); if(hn) rows.push(['Haus',hn]); }
-        KINDS[k].fields.forEach(function(f){ if(f.k==='title') return; var v=e[f.k]; if(f.t==='sign'){ if(v) sigs.push(v); return; } if(v===undefined||v===null||v==='') return; if(f.t==='date') v=fmtDate(v); rows.push([f.l,String(v)]); });
+        KINDS[k].fields.forEach(function(f){ if(f.k==='title'||f.k==='rep'||(f.k==='hours'&&e.rep==='Nein')||(f.k==='wdate'&&e.rep==='Nein')) return; var v=e[f.k]; if(f.t==='sign'){ if(v) sigs.push(v); return; } if(v===undefined||v===null||v==='') return; if(f.t==='date') v=fmtDate(v); rows.push([f.l,String(v)]); });
         if(rows.length) h+='<table>'+rows.map(function(r){ return '<tr><td>'+esc(r[0])+'</td><td>'+esc(r[1])+'</td></tr>'; }).join('')+'</table>';
         if(sigs.length) h+='<div class="rp-sig">Unterschrift: <img src="'+sigs[0]+'" alt=""></div>'; if(e.photos&&e.photos.length) h+='<div class="rp-ph">'+e.photos.slice(0,4).map(function(p){ return '<img src="'+photoSrc(p.o)+'" alt="">'; }).join('')+'</div>';
         h+='</div>';
@@ -1128,7 +1137,7 @@ function secInfo(k,list){
   if(k==='task'){ var late=open.filter(function(e){ return e.due&&dayDiff(e.due)<0; }).length; return [open.length, late?late+' überfällig':(open.length?'offen':'nichts offen'), late>0]; }
   if(k==='damage') return [open.length, open.length?'offen':'keine offenen', false];
   if(k==='appointment'){ var nx=open.map(function(e){ return e.date; }).filter(function(d){ return d&&dayDiff(d)>=0; }).sort()[0]; return [open.filter(function(e){ return e.date&&dayDiff(e.date)>=0; }).length, nx?'nächster '+fmtDate(nx).slice(0,6):'keine geplant', false]; }
-  if(k==='log') return [hrs(list.filter(function(e){ return String(e.date||'').indexOf(ymd().slice(0,7))===0; }).reduce(function(s,e){ return s+(Number(e.hours)||0); },0)), 'Std. diesen Monat', false];
+  if(k==='log') return [hrs(sumHours(S.unitId,ymd().slice(0,7),S.house)), 'Std. diesen Monat', false];
   if(k==='asset'){ var ds=list.map(function(e){ return e.next; }).filter(Boolean).sort()[0]; var lt=ds&&dayDiff(ds)<0; return [n, ds?(lt?'Wartung überfällig':'Wartung '+fmtDate(ds).slice(0,6)):'erfasst', !!lt]; }
   if(k==='contract'){ var soon=list.filter(function(e){ return e.end&&dayDiff(e.end)>=0&&dayDiff(e.end)<=90; }).length; return [n, soon?(soon===1?'1 läuft bald aus':soon+' laufen bald aus'):'erfasst', false]; }
   if(k==='key'){ var out=list.filter(function(e){ return e.status==='Ausgegeben'; }).length, lost=list.filter(function(e){ return e.status==='Verloren'; }).length; return [n, lost?lost+' verloren':out+' ausgegeben', lost>0]; }
@@ -1167,7 +1176,7 @@ function sectionView(u){
   var list=all;
   if(S.house && HOUSE_KINDS[k]) list=list.filter(function(e){ return e.house===S.house; });
   if(k==='log'){
-    var n=new Date(), ym=ymd().slice(0,7), pm=ymd(new Date(n.getFullYear(),n.getMonth()-1,1)).slice(0,7), sum=function(p){ return list.reduce(function(s,e){ return s+(String(e.date||'').indexOf(p)===0?(Number(e.hours)||0):0); },0); };
+    var n=new Date(), ym=ymd().slice(0,7), pm=ymd(new Date(n.getFullYear(),n.getMonth()-1,1)).slice(0,7), sum=function(p){ return sumHours(S.unitId,p,S.house); };
     h+='<div class="sum"><div class="stat"><b>'+hrs(sum(ym))+'</b><span>Std. '+MONTHS[n.getMonth()]+'</span></div><div class="stat"><b>'+hrs(sum(pm))+'</b><span>Std. Vormonat</span></div><div class="stat"><b>'+hrs(sum(String(n.getFullYear())))+'</b><span>Std. '+n.getFullYear()+'</span></div></div>';
   }
   var canHide=(k==='task'||k==='damage'||k==='appointment');
@@ -1221,6 +1230,7 @@ function entryHTML(e,showUnit){
     if(e.insured==='Ja') pills.push('<span class="pill">Versicherung gemeldet</span>');
     extra='<div class="cg"><button class="btn small" data-act="share-dmg" data-id="'+esc(e.id)+'">Meldung teilen</button></div>';
   }
+  if((k==='task'||k==='damage') && e.hours!==''&&e.hours!=null&&Number(e.hours)>0){ pills.push('<span class="pill inf">'+hrs(e.hours)+' Std.'+(e.rep==='Nein'?' · nicht im Rapport':'')+'</span>'); }
   if(k==='log'){ dt('',e.date,false); if(e.hours!==''&&e.hours!=null) pills.push('<span class="pill inf">'+hrs(e.hours)+' Std.</span>'); if(e.material!==''&&e.material!=null) pills.push('<span class="pill">Material '+money(e.material)+'</span>'); }
   if(k==='meter'){
     dt('',e.date,false);
