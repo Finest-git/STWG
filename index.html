@@ -55,7 +55,7 @@ p{margin:0}
 button,input,select,textarea{font:inherit;color:inherit}
 button{-webkit-tap-highlight-color:transparent}
 .wrap{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
-.brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:14px;color:var(--muted);letter-spacing:.02em}
+.brand{display:flex;align-items:center;gap:12px;font-weight:800;font-size:22px;color:var(--ink,inherit);letter-spacing:.01em}.brand img{width:58px;height:auto;flex:none;filter:drop-shadow(0 2px 6px rgba(0,0,0,.35))}
 .logo{width:30px;height:30px;border-radius:9px;background:var(--pri);color:var(--pri-ink);display:grid;place-items:center}
 .top{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
 .top>div:first-child{min-width:0;flex:1 1 200px}
@@ -829,7 +829,7 @@ function render(){
   var app=$('#app'), nav=$('#nav');
   if(!S.ready){
     nav.hidden=true;
-    app.innerHTML='<div class="brand"><span class="logo">'+svg(ICON.unit,18)+'</span>STWG Verwaltung</div><p class="sub">'+(S.slow?'Die Daten sind noch nicht erreichbar. Bitte kurz warten oder neu laden.':'Daten werden geladen …')+'</p>';
+    app.innerHTML='<div class="brand"><img src="logo.png" alt="flims finest">flims finest</div><p class="sub">'+(S.slow?'Die Daten sind noch nicht erreichbar. Bitte kurz warten oder neu laden.':'Daten werden geladen …')+'</p>';
     return;
   }
   var foc=document.activeElement && document.activeElement.id==='q';
@@ -1137,7 +1137,7 @@ function damageRows(list,showUnit){
 }
 function todayView(){
   var now=new Date();
-  var h='<div class="brand"><span class="logo">'+svg(ICON.unit,18)+'</span>STWG Verwaltung</div>'+
+  var h='<div class="brand"><img src="logo.png" alt="flims finest">flims finest</div>'+
     '<header class="top"><div><h1>'+greet()+'</h1><p class="sub">'+WDL[now.getDay()]+', '+now.getDate()+'. '+MONTHS[now.getMonth()]+' '+now.getFullYear()+'</p></div>'+
     (S.units.length?'<button class="btn primary" data-act="quick">+ Erfassen</button>':'')+'</header>'+(S.units.length?'<div class="actions" style="margin:-4px 0 12px"><button class="btn" data-act="quick-photo">Schaden fotografieren</button></div>':'')+modeNote();
   if(S.err) h+='<div class="note">Die Daten konnten nicht gelesen werden ('+esc(S.err)+'). Bitte Seite neu laden.</div>';
