@@ -112,6 +112,18 @@ button{-webkit-tap-highlight-color:transparent}
 .drow.urow{border-left:6px solid var(--uc);background-image:linear-gradient(90deg,color-mix(in srgb,var(--uc) 15%,transparent),transparent 70%)}
 .uch{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}.uc2{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;line-height:1.2;padding:2px 7px 2px 6px;border-radius:999px;background:color-mix(in srgb,var(--c) 17%,transparent);max-width:100%;min-width:0}.uc2 .ud{background:var(--c);margin:0;flex:none}.uc2 em{font-style:normal;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}.uc2 b{font-size:11.5px;flex:none}
 .uc2{border:0;color:inherit;font-family:inherit;cursor:pointer}
+.uch{gap:7px}.uc2{font-size:13.5px;padding:8px 12px 8px 10px;min-height:38px}
+.rp-h3{font-size:14px;margin:14px 0 6px}
+.hrt{width:100%;border-collapse:collapse;margin-bottom:8px}.hrt td{padding:9px 4px;border-bottom:1px solid var(--line)}.hrt .n{text-align:right;font-weight:700;white-space:nowrap}.hrt tr.dim{opacity:.45}.hrt tr.tot td{font-weight:800;border-bottom:0}
+.rdl{display:grid;gap:8px}.rdrow{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--surface2)}.rdt{font-weight:700;margin-bottom:8px}.rdb{display:flex;gap:8px;flex-wrap:wrap}.rdb .btn{min-height:42px;flex:1}
+.rdb .btn{transition:none}
+.rdb .rdok[aria-pressed=true]{background:#1f8a5b;color:#fff;border-color:#1f8a5b}.rdb .rdbad[aria-pressed=true]{background:#c0364d;color:#fff;border-color:#c0364d}
+.rdn{width:100%;margin-top:8px;box-sizing:border-box}
+.rp-brand{display:flex;align-items:center;gap:12px;margin-bottom:10px}.rp-brand img{width:52px}.rp-brand b{display:block;font-size:18px}.rp-brand span{color:#555;font-size:12px}
+.rp-t{width:100%;border-collapse:collapse;margin:6px 0}.rp-t th,.rp-t td{border-bottom:1px solid #bbb;padding:4px 6px;text-align:left;vertical-align:top}.rp-t .n{text-align:right;white-space:nowrap}.rp-t tfoot td{font-weight:700;border-top:2px solid #333;border-bottom:0}.rp-t small{color:#555}
+.rp-kv{border-collapse:collapse;margin:6px 0}.rp-kv td{padding:3px 16px 3px 0;vertical-align:top}.rp-kv td:first-child{color:#555;white-space:nowrap}.rp-pre{white-space:pre-wrap}.rp-total{margin-top:14px;font-size:14px}
+.rp-sigbox{margin-top:30px;width:60%}.rp-sigl{height:80px;border-bottom:1px solid #000;display:flex;align-items:flex-end}.rp-sigl img{max-height:76px}.rp-sigbox span{font-size:11px;color:#555}
+
 .ulink{display:inline-block;padding:3px 4px;margin:-3px -2px;border-radius:8px;text-decoration:underline dotted;text-underline-offset:3px}
 .unit{border-left:8px solid var(--uc,var(--line));border-right:8px solid var(--us,var(--line));background-image:linear-gradient(90deg,color-mix(in srgb,var(--uc,transparent) 16%,transparent),transparent 50%)}
 .ud{display:inline-block;width:10px;height:10px;border-radius:50%;margin:0 4px 0 1px;vertical-align:baseline}
@@ -1046,6 +1058,151 @@ async function mapMigrate(){
   for(var i=0;i<us.length;i++){ var body=Object.assign({},us[i]); delete body.id; delete body.mx; delete body.my; await saveDoc('units',us[i].id,body); }
   try{ localStorage.setItem('stwg-mapver','k5'); }catch(e){}
 }
+/* ---------- Druck / PDF ---------- */
+function printHtml(html){
+  var old=document.getElementById('report'); if(old) old.remove();
+  var d=document.createElement('div'); d.id='report'; d.innerHTML=html; document.body.appendChild(d);
+  document.body.classList.add('printing');
+  function done(){ document.body.classList.remove('printing'); var r=document.getElementById('report'); if(r) r.remove(); window.removeEventListener('afterprint',done); }
+  window.addEventListener('afterprint',done);
+  toast('Im Druckfenster «Als PDF speichern» wählen.');
+  setTimeout(function(){ window.print(); },400);
+}
+function rpHead(title,sub){
+  return '<div class="rp-brand"><img src="logo.png" alt=""><div><b>flims finest</b><span>Hauswartung</span></div></div><div class="rp-head"><h1>'+esc(title)+'</h1>'+(sub?'<p>'+esc(sub)+'</p>':'')+'</div>';
+}
+function rpRows(rows){ return '<table class="rp-kv">'+rows.filter(function(r){ return r[1]!==undefined&&r[1]!==null&&r[1]!==''; }).map(function(r){ return '<tr><td>'+esc(r[0])+'</td><td>'+esc(r[1])+'</td></tr>'; }).join('')+'</table>'; }
+function chf(v){ return Number(v||0).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function sortedUnits(){ return S.units.slice().sort(function(a,b){ return String(a.name).localeCompare(String(b.name),'de'); }); }
+
+/* ---------- Monatsrapport ---------- */
+var RPT={unit:'',ym:''};
+function monthLabel(ym){ var p=String(ym).split('-'); return (MONTHS[(+p[1])-1]||'')+' '+p[0]; }
+function monthItems(unitId,ym){
+  return S.entries.filter(function(e){ return hourCounts(e) && unitById(e.unit) && (!unitId||e.unit===unitId) && String(hourDate(e)).indexOf(ym)===0 && ((Number(e.hours)||0)>0 || (Number(e.material)||0)>0); })
+    .sort(function(a,b){ return String(hourDate(a)).localeCompare(String(hourDate(b))); });
+}
+function monthReportHtml(unitId,ym){
+  var h=rpHead('Monatsrapport '+monthLabel(ym),'Erstellt am '+fmtDate(ymd()));
+  var us=unitId?[unitById(unitId)]:sortedUnits(), tot=0, totM=0, any=false;
+  us.forEach(function(u){
+    if(!u) return; var list=monthItems(u.id,ym); if(!list.length) return; any=true;
+    var sh=0, sm=0;
+    h+='<section class="rp-unit"><h2>'+esc(u.name)+'</h2><p class="rp-sub">'+esc([u.addr,u.ort].filter(Boolean).join(', '))+'</p><table class="rp-t"><thead><tr><th>Datum</th><th>Tätigkeit</th><th class="n">Std.</th><th class="n">Material CHF</th></tr></thead><tbody>';
+    list.forEach(function(e){
+      var hn=e.house?houseOf(u,e.house):'', hv=Number(e.hours)||0, mv=Number(e.material)||0; sh+=hv; sm+=mv;
+      h+='<tr><td>'+esc(fmtDate(hourDate(e)))+'</td><td>'+esc(e.title||'')+(hn||e.area?'<small> · '+esc([hn,e.area].filter(Boolean).join(', '))+'</small>':'')+'</td><td class="n">'+(hv?hrs(hv):'')+'</td><td class="n">'+(mv?chf(mv):'')+'</td></tr>';
+    });
+    h+='</tbody><tfoot><tr><td colspan="2">Total '+esc(u.name)+'</td><td class="n">'+hrs(sh)+'</td><td class="n">'+(sm?chf(sm):'')+'</td></tr></tfoot></table></section>';
+    tot+=sh; totM+=sm;
+  });
+  if(!any) h+='<p class="rp-sub">Keine Einträge mit Stunden oder Material in diesem Monat.</p>';
+  else if(!unitId && us.length>1) h+='<p class="rp-total">Gesamt alle Liegenschaften: <b>'+hrs(tot)+' Std.</b>'+(totM?' · Material CHF '+chf(totM):'')+'</p>';
+  return h;
+}
+function monthSheet(){
+  if(!RPT.ym) RPT.ym=ymd().slice(0,7);
+  var us=sortedUnits();
+  var opts='<option value="">Alle Liegenschaften</option>'+us.map(function(u){ return '<option value="'+esc(u.id)+'"'+(RPT.unit===u.id?' selected':'')+'>'+esc(u.name)+'</option>'; }).join('');
+  var rows=us.map(function(u){ var s=sumHours(u.id,RPT.ym); return '<tr'+(RPT.unit&&RPT.unit!==u.id?' class="dim"':'')+'><td>'+udot(u)+esc(u.name)+'</td><td class="n">'+hrs(s)+' Std.</td></tr>'; }).join('');
+  var n=monthItems(RPT.unit,RPT.ym).length;
+  sheet('Monatsrapport','<div class="fields"><div class="fld"><label for="rp-u">Liegenschaft</label><select id="rp-u">'+opts+'</select></div><div class="fld"><label for="rp-m">Monat</label><input id="rp-m" type="month" value="'+esc(RPT.ym)+'"></div></div>'+
+    '<h3 class="rp-h3">Stunden im '+esc(monthLabel(RPT.ym))+'</h3><table class="hrt">'+rows+'<tr class="tot"><td>Alle zusammen</td><td class="n">'+hrs(sumHours('',RPT.ym))+' Std.</td></tr></table>'+
+    '<p class="hint">'+(n===1?'Im PDF steht 1 Eintrag':'Im PDF stehen '+n+' Einträge')+(RPT.unit?' (nur die gewählte Liegenschaft)':'')+'. Aufgaben und Schäden zählen nur, wenn «Stunden im Rapport zählen» auf Ja steht.</p>'+
+    '<div class="actions" style="margin-top:10px"><button class="btn primary" data-act="rp-make"'+(n?'':' disabled')+'>PDF erstellen</button></div>');
+}
+document.addEventListener('change',function(ev){
+  var t=ev.target; if(!t||!t.id) return;
+  if(t.id==='rp-u'){ RPT.unit=t.value; monthSheet(); }
+  else if(t.id==='rp-m'&&t.value){ RPT.ym=t.value; monthSheet(); }
+});
+
+/* ---------- Rundgang ---------- */
+var RD={unit:'',items:[]};
+var RD_DEF=['Eingang / Treppenhaus','Keller / Technikraum','Lift','Beleuchtung innen und aussen','Tiefgarage / Parkplätze','Aussenanlage / Winterdienst','Abfall / Container','Briefkästen'];
+function rdOpen(uid){
+  var u=unitById(uid); if(!u) return;
+  var list=(u.rounds&&u.rounds.length)?u.rounds:RD_DEF;
+  RD={unit:uid,items:list.map(function(t){ return {t:t,st:'',note:''}; })};
+  rdSheet();
+}
+function rdRow(it,i){
+  return '<div class="rdrow" data-i="'+i+'"><div class="rdt">'+esc(it.t)+'</div><div class="rdb"><button class="btn small rdok" data-act="rd-ok" data-i="'+i+'" aria-pressed="'+(it.st==='ok')+'">✓ In Ordnung</button><button class="btn small rdbad" data-act="rd-bad" data-i="'+i+'" aria-pressed="'+(it.st==='bad')+'">Mangel</button></div>'+
+    '<input class="rdn" data-i="'+i+'" placeholder="Was ist los? (optional)" value="'+esc(it.note)+'"'+(it.st==='bad'?'':' hidden')+'></div>';
+}
+function rdSheet(){
+  var u=unitById(RD.unit); if(!u) return;
+  sheet('Rundgang: '+u.name,'<p class="hint" style="margin-top:0">Jeden Punkt antippen. «Mangel» legt beim Speichern automatisch einen Schaden an.</p><div class="rdl">'+RD.items.map(rdRow).join('')+'</div>'+
+    '<div class="fields" style="margin-top:10px"><div class="fld"><label for="rd-h">Dauer (Stunden, optional)</label><input id="rd-h" type="number" inputmode="decimal" min="0" step="any" placeholder="z. B. 1"></div></div>'+
+    '<div class="actions" style="margin-top:10px"><button class="btn primary" data-act="rd-save">Rundgang speichern</button><button class="btn" data-act="rd-edit">Liste bearbeiten</button></div>');
+}
+function rdSet(i,st){
+  var it=RD.items[i]; if(!it) return; it.st=(it.st===st?'':st);
+  var row=document.querySelector('.rdrow[data-i="'+i+'"]'); if(!row) return;
+  row.querySelector('.rdok').setAttribute('aria-pressed',String(it.st==='ok'));
+  row.querySelector('.rdbad').setAttribute('aria-pressed',String(it.st==='bad'));
+  var n=row.querySelector('.rdn'); n.hidden=it.st!=='bad'; if(it.st==='bad') n.focus();
+}
+document.addEventListener('input',function(ev){
+  var t=ev.target; if(t&&t.classList&&t.classList.contains('rdn')){ var it=RD.items[+t.getAttribute('data-i')]; if(it) it.note=t.value; }
+});
+async function rdSave(){
+  var u=unitById(RD.unit); if(!u) return;
+  var hv=(document.getElementById('rd-h')||{}).value, today=ymd(), bad=RD.items.filter(function(x){ return x.st==='bad'; });
+  var lines=RD.items.map(function(x){ return (x.st==='ok'?'In Ordnung: ':x.st==='bad'?'Mangel: ':'Nicht geprüft: ')+x.t+(x.st==='bad'&&x.note?' – '+x.note:''); });
+  var log={unit:u.id,kind:'log',title:'Rundgang',date:today,hours:hv===''||hv==null?'':hv,material:'',notes:lines.join('\n'),photos:[],created:Date.now(),updated:Date.now()};
+  await saveDoc('entries',newId(),log);
+  for(var i=0;i<bad.length;i++){
+    var b=bad[i];
+    await saveDoc('entries',newId(),{unit:u.id,kind:'damage',title:b.t+(b.note?' – '+b.note:''),area:b.t,date:today,sev:'Mittel',status:'Gemeldet',verw:'Nein',insured:'Nein',rep:'Ja',notes:'Beim Rundgang festgestellt.',photos:[],created:Date.now(),updated:Date.now()});
+  }
+  closeForm(false);
+  toast('Rundgang gespeichert'+(bad.length?': '+bad.length+(bad.length===1?' Mangel':' Mängel')+' als Schaden angelegt.':'.'));
+}
+function rdEdit(){
+  var u=unitById(RD.unit); if(!u) return;
+  var list=(u.rounds&&u.rounds.length)?u.rounds:RD_DEF;
+  sheet('Rundgang-Liste: '+u.name,'<p class="hint" style="margin-top:0">Ein Punkt pro Zeile. Gilt nur für diese Liegenschaft.</p><div class="fld"><textarea id="rd-list" rows="10">'+esc(list.join('\n'))+'</textarea></div>'+
+    '<div class="actions" style="margin-top:10px"><button class="btn primary" data-act="rd-list-save">Liste speichern</button></div>');
+}
+async function rdListSave(){
+  var u=unitById(RD.unit); if(!u) return;
+  var lines=String((document.getElementById('rd-list')||{}).value||'').split('\n').map(function(x){ return x.trim(); }).filter(Boolean);
+  var body=Object.assign({},u,{rounds:lines}); delete body.id;
+  await saveDoc('units',u.id,body);
+  rdOpen(u.id);
+}
+
+/* ---------- Schadenmeldung / Schlüssel-Quittung ---------- */
+function photoStrip(e){ return (e.photos&&e.photos.length)?'<div class="rp-ph">'+e.photos.slice(0,6).map(function(p){ return '<img src="'+photoSrc(p.o)+'" alt="">'; }).join('')+'</div>':''; }
+function damagePdf(e){
+  var u=unitById(e.unit)||{}, hn=e.house?houseOf(u,e.house):'';
+  return rpHead('Schadenmeldung',(u.name||'')+(u.addr?', '+u.addr:'')+(u.ort?', '+u.ort:''))+
+    '<h2>'+esc(e.title||'')+'</h2>'+
+    rpRows([['Liegenschaft',u.name],['Haus',hn],['Bereich / Ort',e.area],['Festgestellt am',e.date?fmtDate(e.date):''],['Dringlichkeit',e.sev],['Status',e.status],['Verwaltung informiert',e.verw],['Versicherung gemeldet',e.insured],['Beauftragte Firma',e.firm],['Geschätzte Kosten',(e.cost!==''&&e.cost!=null)?'CHF '+chf(e.cost):'']])+
+    (e.notes?'<h3>Beschreibung</h3><p class="rp-pre">'+esc(e.notes)+'</p>':'')+photoStrip(e)+
+    '<p class="rp-sub" style="margin-top:18px">Erstellt am '+esc(fmtDate(ymd()))+' · flims finest GmbH</p>';
+}
+function keyPdf(e){
+  var u=unitById(e.unit)||{};
+  return rpHead('Schlüssel-Quittung',(u.name||'')+(u.addr?', '+u.addr:'')+(u.ort?', '+u.ort:''))+
+    rpRows([['Liegenschaft',u.name],['Schlüssel / Bezeichnung',e.title],['Schlüssel-Nr.',e.nr],['Anzahl',e.count],['Ausgegeben an',e.holder],['Ausgegeben am',e.date?fmtDate(e.date):''],['Status',e.status]])+
+    (e.notes?'<p class="rp-pre">'+esc(e.notes)+'</p>':'')+
+    '<p style="margin-top:16px">Der Empfänger bestätigt den Erhalt der oben aufgeführten Schlüssel. Verlust ist umgehend zu melden.</p>'+
+    '<div class="rp-sigbox"><div class="rp-sigl">'+(e.sig?'<img src="'+e.sig+'" alt="">':'')+'</div><span>Unterschrift Empfänger</span></div>'+
+    '<p class="rp-sub" style="margin-top:18px">Erstellt am '+esc(fmtDate(ymd()))+' · flims finest GmbH</p>';
+}
+
+/* ---------- Erledigt ---------- */
+function doneSheet(){
+  var list=S.entries.filter(function(e){ return (e.kind==='task'||e.kind==='damage'||e.kind==='appointment') && !isOpen(e) && unitById(e.unit); })
+    .sort(function(a,b){ return (b.updated||0)-(a.updated||0); }).slice(0,80);
+  var h=list.length?'<div class="list">'+list.map(function(e){
+    var u=unitById(e.unit), d=hourDate(e)||eDate(e)||'';
+    return '<div class="drow urow" style="--uc:'+unitColor(u)+'">'+kindTile(e.kind)+'<button class="dmain" data-act="open-entry" data-id="'+esc(e.id)+'"><b>'+esc(e.title)+'</b><small>'+esc(KINDS[e.kind].one)+' · '+udot(u)+esc(u.name)+'</small></button><span class="dw nochk">'+(d?esc(fmtDate(d).slice(0,6)):'')+'</span></div>';
+  }).join('')+'</div><p class="hint">Die letzten '+list.length+' erledigten Einträge. Antippen zum Öffnen oder wieder Öffnen.</p>':'<p class="hint">Noch nichts erledigt.</p>';
+  sheet('Erledigt',h);
+}
 function icsEsc(t){ return String(t==null?'':t).replace(/\\/g,'\\\\').replace(/\r?\n/g,'\\n').replace(/([,;])/g,'\\$1'); }
 function entryIcs(e){
   var u=unitById(e.unit), p=function(n){ return (n<10?'0':'')+n; };
@@ -1104,7 +1261,7 @@ function backupFooter(){
   var last=0; try{ last=+localStorage.getItem(LASTBK)||0; }catch(e){}
   var t=last?new Date(last).toLocaleDateString('de-CH')+' '+new Date(last).toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'}):'noch nie';
   return '<p class="hint" style="text-align:center;font-size:12.5px;margin:22px 0 8px">Daten nur auf diesem Gerät · letzte Sicherung: '+t+'<br>'+
-   '<button class="linkbtn" data-act="backup-file">Als Datei</button> · <button class="linkbtn" data-act="backup-load">Laden</button> · <button class="linkbtn" data-act="report-pdf">Als PDF</button> · <button class="linkbtn" data-act="backup-ics">Freitags-Erinnerung (Kalender)</button> · <button class="linkbtn" data-act="fun-toggle">Sprüche '+(funOn()?'aus':'an')+'</button></p>';
+   '<button class="linkbtn" data-act="backup-file">Als Datei</button> · <button class="linkbtn" data-act="backup-load">Laden</button> · <button class="linkbtn" data-act="report-pdf">Als PDF</button> · <button class="linkbtn" data-act="month-open">Monatsrapport</button> · <button class="linkbtn" data-act="done-open">Erledigt</button> · <button class="linkbtn" data-act="backup-ics">Freitags-Erinnerung (Kalender)</button> · <button class="linkbtn" data-act="fun-toggle">Sprüche '+(funOn()?'aus':'an')+'</button></p>';
 }
 function icsReminder(){
   var d=new Date(); d.setHours(16,0,0,0); while(d.getDay()!==5||d<=new Date()) d.setDate(d.getDate()+1);
@@ -1212,6 +1369,7 @@ function unitView(u){
   if(sos.length) h+='<div class="sos"><span>Notfall:</span>'+sos.slice(0,6).map(function(e){ return '<a class="cl sosb" href="'+esc(telHref(e.phone2||e.phone))+'">'+svg(ICON.contact,15)+esc(e.title)+'</a>'; }).join('')+'</div>';
   var due=dueItems(u.id).filter(function(x){ return x.n<=14; });
   if(due.length) h+='<section class="panel"><h2 class="ph2">Als Nächstes<i>'+due.length+'</i></h2>'+due.slice(0,6).map(function(x){ return dueRow(x,false); }).join('')+'</section>';
+  h+='<div class="actions" style="margin:4px 0 12px"><button class="btn" data-act="round-open" data-id="'+esc(u.id)+'">Rundgang</button><button class="btn" data-act="month-open" data-id="'+esc(u.id)+'">Monatsrapport</button></div>';
   GROUPS.forEach(function(g){
     h+='<div class="grp">'+g[0]+'</div><div class="secs">';
     g[1].forEach(function(k){
@@ -1518,7 +1676,7 @@ function openEntryForm(e,kind,opts){
   if(!e && S.house && S.nav==='units' && unitId===S.unitId && fields.some(function(f){ return f.k==='house'; })) def.house=S.house;
   if(needSel){ fields=[{k:'unitSel',l:'STWG',t:'select',o:S.units.map(function(u){ return [u.id,u.name]; }),full:1}].concat(fields); def.unitSel=S.units[0].id; }
   var un=unitById(unitId);
-  openForm({title:(e?K.one+' bearbeiten':'Neu: '+K.one), sub:(un&&S.units.length>1?un.name:''), kind:kk, fields:fields, values:e?e:def, photos:e?(e.photos||[]):[], extraHTML:(e&&kk==='appointment'&&e.date)?'<div style="margin:10px 0"><button class="btn" data-act="ics-entry" data-id="'+esc(e.id)+'">In Kalender eintragen (Erinnerung 1 Tag vorher)</button><p class="hint">Es wird der zuletzt gespeicherte Stand eingetragen.</p></div>':'',
+  openForm({title:(e?K.one+' bearbeiten':'Neu: '+K.one), sub:(un&&S.units.length>1?un.name:''), kind:kk, fields:fields, values:e?e:def, photos:e?(e.photos||[]):[], extraHTML:((e&&(kk==='damage'||kk==='key'))?'<div style="margin:10px 0"><button class="btn" data-act="pdf-entry" data-id="'+esc(e.id)+'">'+(kk==='key'?'Schlüssel-Quittung als PDF':'Schadenmeldung als PDF')+'</button><p class="hint">Es wird der zuletzt gespeicherte Stand verwendet.</p></div>':'')+((e&&kk==='appointment'&&e.date)?'<div style="margin:10px 0"><button class="btn" data-act="ics-entry" data-id="'+esc(e.id)+'">In Kalender eintragen (Erinnerung 1 Tag vorher)</button><p class="hint">Es wird der zuletzt gespeicherte Stand eingetragen.</p></div>':''),
     onSave:async function(v,photos){
       var id=e?e.id:newId(), uid=e?e.unit:(unitId||v.unitSel);
       delete v.unitSel;
@@ -1795,6 +1953,16 @@ document.addEventListener('click',function(ev){
   else if(a==='spruch'){ newSpruch(); render(); }
   else if(a==='fun-toggle'){ try{ localStorage.setItem('stwg-fun',funOn()?'0':'1'); }catch(e){} render(); }
   else if(a==='report-pdf') printReport();
+  else if(a==='month-open'){ RPT.unit=(id&&unitById(id))?id:''; monthSheet(); }
+  else if(a==='rp-make') printHtml(monthReportHtml(RPT.unit,RPT.ym));
+  else if(a==='round-open') rdOpen(id);
+  else if(a==='rd-ok') rdSet(i,'ok');
+  else if(a==='rd-bad') rdSet(i,'bad');
+  else if(a==='rd-save') rdSave();
+  else if(a==='rd-edit') rdEdit();
+  else if(a==='rd-list-save') rdListSave();
+  else if(a==='done-open') doneSheet();
+  else if(a==='pdf-entry'){ var pe=entryById(id); if(pe) printHtml(pe.kind==='key'?keyPdf(pe):damagePdf(pe)); }
   else if(a==='load-example') loadExample().catch(function(){ toast('Beispiel konnte nicht geladen werden.'); });
   else if(a==='open-unit'){ S.nav='units'; S.unitId=id; S.sec=null; S.house=''; S.showDone=false; render(); window.scrollTo(0,0); }
   else if(a==='back'){ S.unitId=null; S.sec=null; render(); window.scrollTo(0,0); }
