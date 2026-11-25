@@ -111,6 +111,8 @@ button{-webkit-tap-highlight-color:transparent}
 .unit .addr{color:var(--muted);font-size:13.5px;font-weight:500}
 .drow.urow{border-left:6px solid var(--uc);background-image:linear-gradient(90deg,color-mix(in srgb,var(--uc) 15%,transparent),transparent 70%)}
 .uch{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}.uc2{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;line-height:1.2;padding:2px 7px 2px 6px;border-radius:999px;background:color-mix(in srgb,var(--c) 17%,transparent);max-width:100%;min-width:0}.uc2 .ud{background:var(--c);margin:0;flex:none}.uc2 em{font-style:normal;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}.uc2 b{font-size:11.5px;flex:none}
+.uc2{border:0;color:inherit;font-family:inherit;cursor:pointer}
+.ulink{display:inline-block;padding:3px 4px;margin:-3px -2px;border-radius:8px;text-decoration:underline dotted;text-underline-offset:3px}
 .unit{border-left:8px solid var(--uc,var(--line));border-right:8px solid var(--us,var(--line));background-image:linear-gradient(90deg,color-mix(in srgb,var(--uc,transparent) 16%,transparent),transparent 50%)}
 .ud{display:inline-block;width:10px;height:10px;border-radius:50%;margin:0 4px 0 1px;vertical-align:baseline}
 .ucp{display:flex;flex-wrap:wrap;gap:10px}.uc input{position:absolute;opacity:0}.uc span{display:block;width:36px;height:36px;border-radius:50%;border:3px solid transparent;box-shadow:0 0 0 1px #0004}.uc input:checked+span{border-color:#fff;box-shadow:0 0 0 3px #111,0 0 0 1px #0004}
@@ -1080,10 +1082,11 @@ function colorPicker(u){
     return '<label class="uc"><input type="radio" name="ucol" value="'+c+'"'+(c===cur?' checked':'')+'><span style="background:'+c+'" title="'+UCOLN[i]+'"></span></label>';
   }).join('')+'</div></div>';
 }
+function ulink(u){ return '<span class="ulink" data-act="open-unit" data-id="'+esc(u.id)+'">'+udot(u)+esc(u.name)+'</span>'; }
 function udot(u){ return '<i class="ud" style="background:'+unitColor(u)+'"></i>'; }
 function uchips(pairs){
   pairs=pairs.filter(function(p){ return p[1]>0 && p[0]; }); if(!pairs.length) return '';
-  return '<div class="uch">'+pairs.map(function(p){ return '<span class="uc2" style="--c:'+unitColor(p[0])+'"><i class="ud"></i><em>'+esc(p[0].name)+'</em><b>'+(typeof p[1]==='number'&&p[1]%1?hrs(p[1]):p[1])+'</b></span>'; }).join('')+'</div>';
+  return '<div class="uch">'+pairs.map(function(p){ return '<button class="uc2" data-act="open-unit" data-id="'+esc(p[0].id)+'" style="--c:'+unitColor(p[0])+'"><i class="ud"></i><em>'+esc(p[0].name)+'</em><b>'+(typeof p[1]==='number'&&p[1]%1?hrs(p[1]):p[1])+'</b></button>'; }).join('')+'</div>';
 }
 function byUnit(items,getU){
   var m={}, order=[]; items.forEach(function(x){ var u=getU(x); if(!u) return; if(!m[u.id]){ m[u.id]=[u,0]; order.push(u.id); } m[u.id][1]++; });
@@ -1116,7 +1119,7 @@ function checkBtn(e,done){
 function dueRow(x,showUnit){
   var e=x.e, k=e.kind, lab=k==='contract'?'Vertrag läuft ab':k==='asset'?'Wartung':KINDS[k].one;
   var hn=e.house?houseOf(x.u,e.house):'', sub=[esc(lab)];
-  if(showUnit) sub.push(udot(x.u)+esc(x.u.name)); if(hn) sub.push(esc(hn)); if(k==='appointment'&&e.time) sub.push(esc(e.time+' Uhr')); if(k==='task'&&STEP[e.repeat]) sub.push(esc(e.repeat.toLowerCase()));
+  if(showUnit) sub.push(ulink(x.u)); if(hn) sub.push(esc(hn)); if(k==='appointment'&&e.time) sub.push(esc(e.time+' Uhr')); if(k==='task'&&STEP[e.repeat]) sub.push(esc(e.repeat.toLowerCase()));
   return '<div class="drow'+(showUnit?' urow':'')+'"'+(showUnit?' style="--uc:'+unitColor(x.u)+'"':'')+'>'+kindTile(k)+'<button class="dmain" data-act="open-entry" data-id="'+esc(e.id)+'"><b>'+esc(e.title)+'</b><small>'+sub.join(' · ')+'</small></button>'+
     '<span class="dw '+whenClass(x.n)+(k==='task'?'':' nochk')+'">'+(x.n===0?'heute':esc(fmtDate(x.d).slice(0,6))+'<small>'+esc(relShort(x.n))+'</small>')+'</span>'+(k==='task'?checkBtn(e,false):'')+'</div>';
 }
@@ -1126,7 +1129,7 @@ function dueGroup(title,items,cls,showUnit){
 }
 function damageRows(list,showUnit){
   return list.map(function(e){
-    var u=unitById(e.unit), hn=e.house?houseOf(u,e.house):'', sub=[]; if(showUnit) sub.push(udot(u)+esc(u.name)); if(hn) sub.push(esc(hn)); if(e.area) sub.push(esc(e.area)); sub.push(esc(e.status||'Gemeldet'));
+    var u=unitById(e.unit), hn=e.house?houseOf(u,e.house):'', sub=[]; if(showUnit) sub.push(ulink(u)); if(hn) sub.push(esc(hn)); if(e.area) sub.push(esc(e.area)); sub.push(esc(e.status||'Gemeldet'));
     return '<div class="drow'+(showUnit?' urow':'')+'"'+(showUnit&&u?' style="--uc:'+unitColor(u)+'"':'')+'>'+kindTile('damage')+'<button class="dmain" data-act="open-entry" data-id="'+esc(e.id)+'"><b>'+esc(e.title)+'</b><small>'+sub.join(' · ')+'</small></button>'+
       (e.sev==='Hoch'?'<span class="pill bad">Dringlich</span>':'')+checkBtn(e,false)+'</div>';
   }).join('');
@@ -1145,12 +1148,13 @@ function todayView(){
   var all=dueItems(), late=all.filter(function(x){ return x.n<0; }), tod=all.filter(function(x){ return x.n===0; }),
       week=all.filter(function(x){ return x.n>0&&x.n<=7; }), later=all.filter(function(x){ return x.n>7; }), dm=openDamages();
   var multi=S.units.length>1;
+  var openTasks=S.entries.filter(function(e){ return e.kind==='task' && isOpen(e) && unitById(e.unit); });
   h+=spruchCard();
   h+='<section class="stats" aria-label="Übersicht">'+
     '<div class="stat'+(late.length?' bad':'')+'"><b>'+late.length+'</b><span>Überfällig</span>'+(multi?uchips(byUnit(late,function(x){ return x.u; })):'')+'</div>'+
     '<div class="stat"><b>'+(tod.length+week.length)+'</b><span>Diese Woche</span>'+(multi?uchips(byUnit(tod.concat(week),function(x){ return x.u; })):'')+'</div>'+
     '<div class="stat'+(dm.length?' warn':'')+'"><b>'+dm.length+'</b><span>Offene Schäden</span>'+(multi?uchips(byUnit(dm,function(e){ return unitById(e.unit); })):'')+'</div>'+
-    '<div class="stat"><b>'+hrs(sumHours('',ymd().slice(0,7)))+'</b><span>Stunden im '+MONTHS[now.getMonth()]+'</span>'+(multi?uchips(S.units.map(function(u){ return [u,sumHours(u.id,ymd().slice(0,7))]; }).sort(function(a,b){ return String(a[0].name).localeCompare(String(b[0].name),'de'); })):'')+'</div></section>';
+    '<div class="stat"><b>'+openTasks.length+'</b><span>Offene Aufgaben</span>'+(multi?uchips(byUnit(openTasks,function(e){ return unitById(e.unit); })):'')+'</div></section>';
   h+=weatherCard();
   h+=mapPanel();
   h+=dueGroup('Überfällig',late,'late',multi)+dueGroup('Heute',tod,'',multi)+dueGroup('Diese Woche',week,'',multi);
