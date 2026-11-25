@@ -836,6 +836,7 @@ function render(){
   var unit=S.unitId ? unitById(S.unitId) : null;
   app.innerHTML = S.nav==='cal' ? calView() : S.nav==='search' ? searchView() : S.nav==='units' ? (unit ? (S.sec ? sectionView(unit) : unitView(unit)) : unitsView()) : todayView();
   nav.hidden=false; nav.innerHTML=navHTML();
+  if(window.navSync) window.navSync();
   initSat();
   if(foc){ var q=$('#q'); if(q){ q.focus(); try{ q.setSelectionRange(q.value.length,q.value.length); }catch(x){} } }
 }
@@ -1885,6 +1886,44 @@ async function init(){
     if(navigator.storage&&navigator.storage.persist) navigator.storage.persist().catch(function(){});
   }catch(e){ S.err='Speicher des Browsers nicht verfügbar (privater Modus?)'; }
   try{ await mapMigrate(); }catch(e){}
+  var HK={cur:null,busy:false,popping:false,ov:0};
+  function hKey(){ return S.nav+'|'+(S.unitId||'')+'|'+(S.sec||''); }
+  function hOpen(){ return ['modal','lightbox','annot'].filter(function(id){ var e=document.getElementById(id); return e&&!e.hidden; }); }
+  function navSync(){
+    if(HK.busy||!S.ready) return;
+    var k=hKey();
+    if(HK.cur===null){ HK.cur=k; try{ history.replaceState({k:k,o:0},''); }catch(_){} return; }
+    if(k!==HK.cur){
+      var o=hOpen().length; HK.cur=k;
+      try{ if(o===0) history.pushState({k:k,o:0},''); else history.replaceState({k:k,o:o},''); }catch(_){}
+    }
+  }
+  window.navSync=navSync;
+  function ovSync(){
+    var n=hOpen().length;
+    if(n>HK.ov){ HK.ov=n; try{ history.pushState({k:HK.cur||hKey(),o:n},''); }catch(_){} }
+    else if(n<HK.ov){
+      var d=HK.ov-n; HK.ov=n;
+      if(HK.popping){ HK.popping=false; }
+      else { HK.busy=true; try{ history.go(-d); }catch(_){ HK.busy=false; } }
+    }
+  }
+  ['modal','lightbox','annot'].forEach(function(id){ var e=document.getElementById(id); if(e) new MutationObserver(ovSync).observe(e,{attributes:true,attributeFilter:['hidden']}); });
+  window.addEventListener('popstate',function(ev){
+    if(HK.busy){ HK.busy=false; navSync(); return; }
+    var st=ev.state||{k:'today||',o:0}, op=hOpen();
+    if(op.length>(st.o||0)){
+      HK.popping=true;
+      var top=op[op.length-1];
+      if(top==='annot'){ var c=document.querySelector('[data-act=a-cancel]'); if(c) c.click(); else document.getElementById('annot').hidden=true; }
+      else if(top==='lightbox'){ document.getElementById('lightbox').hidden=true; }
+      else { closeForm(true); }
+      return;
+    }
+    var p=String(st.k||'today||').split('|');
+    S.nav=p[0]||'today'; S.unitId=p[1]||null; S.sec=p[2]||null; HK.cur=st.k;
+    render(); window.scrollTo(0,0);
+  });
   S.ready=true; wxLoad(); render(); wxFetch();
   document.addEventListener('visibilitychange',function(){ if(!document.hidden){ wxFetch(); if(S.nav==='today'&&funOn()&&!M){ newSpruch(); render(); } } });
   setInterval(function(){ if(!funOn()||S.nav!=='today'||M||document.hidden) return; var el=document.querySelector('.spruch'); if(!el) return; newSpruch(); el.textContent=FUN[S.fq]; },30000);
