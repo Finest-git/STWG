@@ -1051,12 +1051,12 @@ function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
 function spruchCard(){ if(!funOn()) return ''; if(S.fq==null) newSpruch(); var i=S.fq; return '<button class="spruch" data-act="spruch" aria-label="Neuer Spruch">'+esc(FUN[i])+'</button>'; }
 async function mapMigrate(){
   var ver=''; try{ ver=localStorage.getItem('stwg-mapver')||''; }catch(e){}
-  if(ver==='k5') return;
+  if(ver==='k6') return;
   var md=(S.settings||[]).filter(function(x){ return x.id==='map'; })[0];
   if(md){ var old=md.img; await delDoc('settings','map'); if(old&&old!=='builtin') await dropPhoto(old); }
   var us=S.units.filter(function(u){ return u.mx!==undefined||u.my!==undefined; });
   for(var i=0;i<us.length;i++){ var body=Object.assign({},us[i]); delete body.id; delete body.mx; delete body.my; await saveDoc('units',us[i].id,body); }
-  try{ localStorage.setItem('stwg-mapver','k5'); }catch(e){}
+  try{ localStorage.setItem('stwg-mapver','k6'); }catch(e){}
 }
 /* ---------- Druck / PDF ---------- */
 function printHtml(html){
