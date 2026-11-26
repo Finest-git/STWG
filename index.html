@@ -712,7 +712,7 @@ function satDraw(){
     p.style.transform='translate3d('+(w/2+(parseFloat(p.getAttribute('data-x'))-V.cx)*W).toFixed(1)+'px,'+(h/2+(parseFloat(p.getAttribute('data-y'))-V.cy)*H).toFixed(1)+'px,0)';
   });
 }
-var ZMAX=3;
+var ZMAX=9;
 function satClamp(){
   var V=S.mv, el=SATV.root; V.z=Math.max(1,Math.min(ZMAX,V.z));
   if(!el||!SATV.nw||!el.clientWidth){ V.cx=Math.max(0,Math.min(1,V.cx)); V.cy=Math.max(0,Math.min(1,V.cy)); return; }
