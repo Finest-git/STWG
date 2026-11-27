@@ -128,6 +128,11 @@ button{-webkit-tap-highlight-color:transparent}
 .ud{display:inline-block;width:10px;height:10px;border-radius:50%;margin:0 4px 0 1px;vertical-align:baseline}
 .ucp{display:flex;flex-wrap:wrap;gap:10px}.uc input{position:absolute;opacity:0}.uc span{display:block;width:36px;height:36px;border-radius:50%;border:3px solid transparent;box-shadow:0 0 0 1px #0004}.uc input:checked+span{border-color:#fff;box-shadow:0 0 0 3px #111,0 0 0 1px #0004}
 .lgd{color:var(--muted);font-size:12.5px;margin:4px 2px 12px}
+.vtag{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:#6b4e00;background:#f2c14e;border-radius:6px;padding:1px 6px;vertical-align:middle;margin-left:4px}
+.unit.rep{background-image:repeating-linear-gradient(135deg,rgba(242,193,78,.16) 0 10px,transparent 10px 20px);border-style:dashed}
+.ufl{display:flex;gap:8px;margin:2px 0 10px;flex-wrap:wrap}.ufb{border:1.5px solid var(--line2,#ccc);background:var(--surface);color:inherit;border-radius:999px;padding:7px 14px;font:inherit;font-weight:700;font-size:13.5px;cursor:pointer}.ufb.on{background:#0f4c5c;color:#fff;border-color:#0f4c5c}
+.rp-sec{font-weight:800;font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:10px 0 4px}
+
 
 .counts{display:flex;flex-wrap:wrap;gap:6px}
 .pill{display:inline-flex;align-items:center;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700;background:var(--neutral-bg);color:var(--muted);white-space:nowrap;flex:none}
@@ -506,6 +511,7 @@ var UNIT_FIELDS=[
   {k:'name',l:'Name der STWG',t:'text',req:1,full:1,ph:'z. B. STWG Rebbergstrasse 14'},
   {k:'addr',l:'Adresse',t:'text',full:1,ph:'Strasse Nr., PLZ Ort'},
   {k:'ort',l:'Ort (für die Karte)',t:'select',o:[['','– wählen –'],'Flims','Laax','Trin','Andere']},
+  {k:'vertr',l:'Liegenschaft des Geschäftspartners (Vertretung)',t:'select',o:[['','Nein, meine eigene'],['Ja','Ja, Vertretung']]},
   {k:'count',l:'Anzahl Wohnungen',t:'text'},
   {k:'contact',l:'Verwaltung / Ansprechperson',t:'text'},
   {k:'notes',l:'Notizen',t:'area',full:1}
@@ -654,7 +660,8 @@ function pickBackup(){
    (z. B. aus Google Maps). Er wird in der App gespeichert, du kannst hineinzoomen und die Liegenschaften per Tipp platzieren. */
 var SATV={root:null,pins:[],off:[],raf:0,nw:0,nh:0,imgId:'',img:null,failed:false};
 function guessOrt(addr){ var m=String(addr||'').match(/flims|laax|trin/i); if(!m) return ''; var s=m[0].toLowerCase(); return s==='flims'?'Flims':s==='laax'?'Laax':'Trin'; }
-function mapImgId(){ var r=(S.settings||[]).filter(function(x){ return x.id==='map'; })[0]; return (r&&r.img)||'builtin'; }
+function mapDoc(){ return S.mapMode==='rep'?'map2':'map'; }
+function mapImgId(){ var r=(S.settings||[]).filter(function(x){ return x.id===mapDoc(); })[0]; return (r&&r.img)||'builtin'; }
 function unitStatus(u){
   var due=dueItems(u.id), late=due.filter(function(x){ return x.n<0; }).length, wk=due.filter(function(x){ return x.n>=0&&x.n<=7; }).length;
   var dm=openDamages(u.id), hi=dm.filter(function(e){ return e.sev==='Hoch'; }).length;
@@ -663,9 +670,9 @@ function unitStatus(u){
 function pinHTML(u,st,sel){
   var col=st.lvl===2?'#e2412f':st.lvl===1?'#f2a516':'#3f9f4a';
   return '<button class="pb'+(sel?' sel':'')+'" data-act="map-pin" data-id="'+esc(u.id)+'" aria-label="'+esc(u.name)+(st.n?', '+st.n+' offen':'')+'">'+
-    '<svg viewBox="0 0 60 70" width="58" height="68" aria-hidden="true"><path d="M30 64C30 64 6 40 6 25A24 24 0 0 1 54 25C54 40 30 64 30 64Z" fill="'+unitColor(u)+'" stroke="#fff" stroke-width="3.5" stroke-linejoin="round"/>'+
-    '<circle cx="30" cy="25" r="17" fill="#fbf1d6"/>'+
-    crestSvg(logoKey(u),String(u.name||'').trim().charAt(0).toUpperCase(),27,'',unitColor(u)).replace('<svg ','<svg x="16.5" y="9" ')+
+    '<svg viewBox="0 0 60 70" width="58" height="68" aria-hidden="true"><path d="M30 64C30 64 6 40 6 25A24 24 0 0 1 54 25C54 40 30 64 30 64Z" fill="'+unitColor(u)+'" stroke="'+(isRep(u)?'#f2c14e':'#fff')+'" stroke-width="3.5" stroke-linejoin="round"'+(isRep(u)?' stroke-dasharray="6 3"':'')+'/>'+
+    '<circle cx="30" cy="25" r="17" fill="#fbf1d6"'+(isRep(u)?' stroke="#c8d2de" stroke-width="2"':'')+'/>'+
+    crestSvg(logoKey(u),String(u.name||'').trim().charAt(0).toUpperCase(),27,'',unitColor(u),isRep(u)).replace('<svg ','<svg x="16.5" y="9" ')+
     '<circle cx="51" cy="8" r="9.5" fill="'+col+'" stroke="#fff" stroke-width="2.5"/><text x="51" y="12.2" font-size="11" font-weight="900" text-anchor="middle" fill="#fff">'+(st.n||'\u2713')+'</text></svg>'+
     '<span class="pn" style="border-bottom:3px solid '+unitColor(u)+'">'+esc(String(u.name).replace(/^Beispiel: /,''))+'</span></button>';
 }
@@ -692,13 +699,14 @@ function mapPanel(){
   if(!id){
     return '<section class="satbox"><div class="mapempty"><h2>Karte deiner Liegenschaften</h2><p>Wähle ein Luftbild von Flims, Laax und Trin. Mach dazu einen Screenshot der Satellitenansicht, zum Beispiel in Google Maps oder auf map.geo.admin.ch, und wähle ihn hier aus. Danach kannst du hineinzoomen und jede Liegenschaft per Tipp auf dem Bild platzieren.</p><div class="actions"><button class="btn primary" data-act="map-img">Kartenbild auswählen</button></div></div>'+head+'</section>';
   }
-  var us=S.units.slice().sort(function(a,b){ return String(a.name).localeCompare(String(b.name),'de'); }), pins=[], off=[];
+  if(S.mapMode==='rep'&&!S.units.some(isRep)) S.mapMode='own';
+  var hasRep=S.units.some(isRep), us=S.units.filter(function(u){ return S.mapMode==='rep'?isRep(u):!isRep(u); }).sort(function(a,b){ return String(a.name).localeCompare(String(b.name),'de'); }), pins=[], off=[];
   us.forEach(function(u){
     var x=parseFloat(u.mx), y=parseFloat(u.my);
     if(isFinite(x)&&isFinite(y)) pins.push({u:u,x:x,y:y,st:unitStatus(u)}); else off.push(u);
   });
   SATV.pins=pins; SATV.off=off;
-  return '<section class="satbox" aria-label="Karte der Liegenschaften"><div id="sat" class="sat'+(S.placing?' placing':'')+'" role="application" aria-label="Luftbild, ziehen zum Verschieben"></div><div id="mapui">'+mapUIHTML()+'</div>'+head+'</section>';
+  return '<section class="satbox" aria-label="Karte der Liegenschaften">'+(hasRep?'<div class="ufl"><button class="ufb'+(S.mapMode==='rep'?'':' on')+'" data-act="map-mode" data-id="own">Meine Karte</button><button class="ufb'+(S.mapMode==='rep'?' on':'')+'" data-act="map-mode" data-id="rep">Karte Vertretung</button></div>':'')+'<div id="sat" class="sat'+(S.placing?' placing':'')+'" role="application" aria-label="Luftbild, ziehen zum Verschieben"></div><div id="mapui">'+mapUIHTML()+'</div>'+head+'</section>';
 }
 function satSchedule(){ if(SATV.raf) return; SATV.raf=requestAnimationFrame(function(){ SATV.raf=0; satDraw(); }); }
 function satScale(){ var el=SATV.root; return Math.max(el.clientWidth/SATV.nw, el.clientHeight/SATV.nh)*S.mv.z; }
@@ -795,7 +803,7 @@ async function mapFile(file){
   toast('Bild wird verarbeitet …');
   try{
     var blob=await shrink(file, assets?2800:1800, assets?0.86:0.78), id=await putPhoto(blob), old=mapImgId();
-    await saveDoc('settings','map',{img:id,updated:Date.now()});
+    await saveDoc('settings',mapDoc(),{img:id,updated:Date.now()});
     if(old && old!==id) dropPhoto(old);
     S.mv=null; toast('Kartenbild gespeichert. Jetzt Liegenschaften platzieren.'); render();
   }catch(e){ toast('Das Bild konnte nicht gespeichert werden.'); }
@@ -927,11 +935,11 @@ var SYMS={
 var SYMKEYS=['mono','mount','falcon','valley','tulip','sun','heart','tree','house','star','igel','hang','flake'];
 function defaultLogo(name){ var n=String(name||'').toLowerCase().trim(), m={'crap grisch':'mount','falcun':'falcon','valetta':'valley','bellavista':'sun','cordial':'heart','tulipana':'tulip','plaunca':'hang','erizun':'igel','davon':'tree','lanezzi':'house'}; return m[n]||'mono'; }
 function logoKey(u){ return (u&&u.logo&&(u.logo==='mono'||SYMS[u.logo]))?u.logo:defaultLogo(u&&u.name); }
-function crestSvg(key,initial,sz,cls,fill){
+function crestSvg(key,initial,sz,cls,fill,round){
   var inner = key==='mono' ? '<text x="50" y="76" text-anchor="middle" font-size="48" font-weight="700" fill="#f1ead9" font-family="system-ui,sans-serif">'+esc(initial||'?')+'</text>' : '<g transform="translate(20,34)">'+SYMS[key][1]+'</g>';
-  return '<svg class="crest'+(cls?' '+cls:'')+'" width="'+sz+'" height="'+Math.round(sz*1.2)+'" viewBox="0 0 100 120" aria-hidden="true"><path d="M50 4 L92 16 V58 C92 88 70 108 50 116 C30 108 8 88 8 58 V16 Z" fill="'+(fill||'#0f4c5c')+'" stroke="#d9b45a" stroke-width="4"/>'+inner+'</svg>';
+  return '<svg class="crest'+(cls?' '+cls:'')+'" width="'+sz+'" height="'+Math.round(sz*1.2)+'" viewBox="0 0 100 120" aria-hidden="true">'+(round?'<circle cx="50" cy="62" r="49" fill="'+(fill||'#0f4c5c')+'" stroke="#c8d2de" stroke-width="5"/><circle cx="50" cy="62" r="41" fill="none" stroke="#c8d2de" stroke-width="1.8" stroke-dasharray="3 3"/>':'<path d="M50 4 L92 16 V58 C92 88 70 108 50 116 C30 108 8 88 8 58 V16 Z" fill="'+(fill||'#0f4c5c')+'" stroke="#d9b45a" stroke-width="4"/>')+inner+'</svg>';
 }
-function crest(u,sz){ var n=String(u&&u.name||'').trim(); return crestSvg(logoKey(u),n.charAt(0).toUpperCase(),sz||40,'',unitColor(u)); }
+function crest(u,sz){ var n=String(u&&u.name||'').trim(); return crestSvg(logoKey(u),n.charAt(0).toUpperCase(),sz||40,'',unitColor(u),isRep(u)); }
 function logoPicker(u){
   var cur=logoKey(u), ini=String(u&&u.name||'A').trim().charAt(0).toUpperCase()||'A';
   return '<div class="fld full" style="margin-top:14px"><label>Logo (Wappen)</label><div class="crests">'+SYMKEYS.map(function(k){
@@ -1075,18 +1083,30 @@ function rpRows(rows){ return '<table class="rp-kv">'+rows.filter(function(r){ r
 function chf(v){ return Number(v||0).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function sortedUnits(){ return S.units.slice().sort(function(a,b){ return String(a.name).localeCompare(String(b.name),'de'); }); }
 
+/* ---------- Vertretung ---------- */
+function isRep(u){ return !!u && u.vertr==='Ja'; }
+function repUnits(){ return sortedUnits().filter(isRep); }
+function mineUnits(){ return sortedUnits().filter(function(u){ return !isRep(u); }); }
+
 /* ---------- Monatsrapport ---------- */
-var RPT={unit:'',ym:''};
+var RPT={sel:'mine',ym:''};
 function monthLabel(ym){ var p=String(ym).split('-'); return (MONTHS[(+p[1])-1]||'')+' '+p[0]; }
 function monthItems(unitId,ym){
-  return S.entries.filter(function(e){ return hourCounts(e) && unitById(e.unit) && (!unitId||e.unit===unitId) && String(hourDate(e)).indexOf(ym)===0 && ((Number(e.hours)||0)>0 || (Number(e.material)||0)>0); })
+  return S.entries.filter(function(e){ return hourCounts(e) && e.unit===unitId && String(hourDate(e)).indexOf(ym)===0 && ((Number(e.hours)||0)>0 || (Number(e.material)||0)>0); })
     .sort(function(a,b){ return String(hourDate(a)).localeCompare(String(hourDate(b))); });
 }
-function monthReportHtml(unitId,ym){
-  var h=rpHead('Monatsrapport '+monthLabel(ym),'Erstellt am '+fmtDate(ymd()));
-  var us=unitId?[unitById(unitId)]:sortedUnits(), tot=0, totM=0, any=false;
+function scopeUnits(sel){
+  if(sel==='mine') return mineUnits();
+  if(sel==='rep') return repUnits();
+  var u=unitById(sel); return u?[u]:[];
+}
+function scopeTitle(sel){ return sel==='rep'?'Vertretung':(sel==='mine'||!unitById(sel)?'':''); }
+function monthReportHtml(sel,ym){
+  var us=scopeUnits(sel), sub=(sel==='rep'?'Vertretung Geschäftspartner · ':'')+'Erstellt am '+fmtDate(ymd());
+  var h=rpHead('Monatsrapport '+monthLabel(ym)+(sel==='rep'?' – Vertretung':''),sub);
+  var tot=0, totM=0, any=false;
   us.forEach(function(u){
-    if(!u) return; var list=monthItems(u.id,ym); if(!list.length) return; any=true;
+    var list=monthItems(u.id,ym); if(!list.length) return; any=true;
     var sh=0, sm=0;
     h+='<section class="rp-unit"><h2>'+esc(u.name)+'</h2><p class="rp-sub">'+esc([u.addr,u.ort].filter(Boolean).join(', '))+'</p><table class="rp-t"><thead><tr><th>Datum</th><th>Tätigkeit</th><th class="n">Std.</th><th class="n">Material CHF</th></tr></thead><tbody>';
     list.forEach(function(e){
@@ -1097,23 +1117,49 @@ function monthReportHtml(unitId,ym){
     tot+=sh; totM+=sm;
   });
   if(!any) h+='<p class="rp-sub">Keine Einträge mit Stunden oder Material in diesem Monat.</p>';
-  else if(!unitId && us.length>1) h+='<p class="rp-total">Gesamt alle Liegenschaften: <b>'+hrs(tot)+' Std.</b>'+(totM?' · Material CHF '+chf(totM):'')+'</p>';
+  else if(us.length>1) h+='<p class="rp-total">Gesamt: <b>'+hrs(tot)+' Std.</b>'+(totM?' · Material CHF '+chf(totM):'')+'</p>';
   return h;
 }
+function scopeHours(sel,ym){ var t=0; scopeUnits(sel).forEach(function(u){ t+=sumHours(u.id,ym); }); return t; }
 function monthSheet(){
   if(!RPT.ym) RPT.ym=ymd().slice(0,7);
-  var us=sortedUnits();
-  var opts='<option value="">Alle Liegenschaften</option>'+us.map(function(u){ return '<option value="'+esc(u.id)+'"'+(RPT.unit===u.id?' selected':'')+'>'+esc(u.name)+'</option>'; }).join('');
-  var rows=us.map(function(u){ var s=sumHours(u.id,RPT.ym); return '<tr'+(RPT.unit&&RPT.unit!==u.id?' class="dim"':'')+'><td>'+udot(u)+esc(u.name)+'</td><td class="n">'+hrs(s)+' Std.</td></tr>'; }).join('');
-  var n=monthItems(RPT.unit,RPT.ym).length;
-  sheet('Monatsrapport','<div class="fields"><div class="fld"><label for="rp-u">Liegenschaft</label><select id="rp-u">'+opts+'</select></div><div class="fld"><label for="rp-m">Monat</label><input id="rp-m" type="month" value="'+esc(RPT.ym)+'"></div></div>'+
-    '<h3 class="rp-h3">Stunden im '+esc(monthLabel(RPT.ym))+'</h3><table class="hrt">'+rows+'<tr class="tot"><td>Alle zusammen</td><td class="n">'+hrs(sumHours('',RPT.ym))+' Std.</td></tr></table>'+
-    '<p class="hint">'+(n===1?'Im PDF steht 1 Eintrag':'Im PDF stehen '+n+' Einträge')+(RPT.unit?' (nur die gewählte Liegenschaft)':'')+'. Aufgaben und Schäden zählen nur, wenn «Stunden im Rapport zählen» auf Ja steht.</p>'+
-    '<div class="actions" style="margin-top:10px"><button class="btn primary" data-act="rp-make"'+(n?'':' disabled')+'>PDF erstellen</button></div>');
+  var mine=mineUnits(), rep=repUnits();
+  if(RPT.sel!=='mine'&&RPT.sel!=='rep'&&!unitById(RPT.sel)) RPT.sel='mine';
+  if(RPT.sel==='rep'&&!rep.length) RPT.sel='mine';
+  var opts='<option value="mine"'+(RPT.sel==='mine'?' selected':'')+'>'+(rep.length?'Alle meine Liegenschaften':'Alle Liegenschaften')+'</option>'+
+    (rep.length?'<option value="rep"'+(RPT.sel==='rep'?' selected':'')+'>Alle Vertretungs-Liegenschaften</option>':'')+
+    sortedUnits().map(function(u){ return '<option value="'+esc(u.id)+'"'+(RPT.sel===u.id?' selected':'')+'>'+esc(u.name)+(isRep(u)?' (Vertretung)':'')+'</option>'; }).join('');
+  function tbl(list,lbl){
+    if(!list.length) return '';
+    return (lbl?'<div class="rp-sec">'+lbl+'</div>':'')+'<table class="hrt">'+list.map(function(u){ return '<tr><td>'+udot(u)+esc(u.name)+'</td><td class="n">'+hrs(sumHours(u.id,RPT.ym))+' Std.</td></tr>'; }).join('')+'<tr class="tot"><td>Summe</td><td class="n">'+hrs(list.reduce(function(a,u){ return a+sumHours(u.id,RPT.ym); },0))+' Std.</td></tr></table>';
+  }
+  var n=0; scopeUnits(RPT.sel).forEach(function(u){ n+=monthItems(u.id,RPT.ym).length; });
+  sheet('Monatsrapport','<div class="fields"><div class="fld"><label for="rp-u">Für</label><select id="rp-u">'+opts+'</select></div><div class="fld"><label for="rp-m">Monat</label><input id="rp-m" type="month" value="'+esc(RPT.ym)+'"></div></div>'+
+    '<h3 class="rp-h3">Stunden im '+esc(monthLabel(RPT.ym))+'</h3>'+tbl(mine,rep.length?'Meine Liegenschaften':'')+tbl(rep,'Vertretung Geschäftspartner')+
+    '<p class="hint">'+(n===1?'Im PDF steht 1 Eintrag':'Im PDF stehen '+n+' Einträge')+'. Aufgaben und Schäden zählen nur, wenn «Stunden im Rapport zählen» auf Ja steht.</p>'+
+    '<div class="actions" style="margin-top:10px"><button class="btn primary" data-act="rp-make"'+(n?'':' disabled')+'>PDF erstellen</button>'+(rep.length?'<button class="btn" data-act="hand-make">Übergabe-Bericht Vertretung</button>':'')+'</div>');
+}
+function handoverHtml(){
+  var h=rpHead('Übergabe-Bericht Vertretung','Stand '+fmtDate(ymd())+' · flims finest GmbH'), us=repUnits();
+  if(!us.length) return h+'<p class="rp-sub">Keine Vertretungs-Liegenschaften.</p>';
+  us.forEach(function(u){
+    var es=S.entries.filter(function(e){ return e.unit===u.id; });
+    var tk=es.filter(function(e){ return (e.kind==='task'||e.kind==='damage'||e.kind==='appointment'); });
+    var open=tk.filter(isOpen).sort(function(a,b){ return String(eDate(a)||'9999').localeCompare(String(eDate(b)||'9999')); });
+    var done=tk.filter(function(e){ return !isOpen(e); }).sort(function(a,b){ return String(eDate(b)||'').localeCompare(String(eDate(a)||'')); });
+    var hrsE=es.filter(function(e){ return hourCounts(e) && ((Number(e.hours)||0)>0); }).sort(function(a,b){ return String(hourDate(a)).localeCompare(String(hourDate(b))); });
+    var th=hrsE.reduce(function(a,e){ return a+(Number(e.hours)||0); },0);
+    function row(e){ return '<tr><td>'+esc(eDate(e)?fmtDate(eDate(e)):'')+'</td><td>'+esc(KINDS[e.kind].one)+'</td><td>'+esc(e.title||'')+(e.area?'<small> · '+esc(e.area)+'</small>':'')+'</td><td>'+esc(e.status||'')+'</td></tr>'; }
+    h+='<section class="rp-unit"><h2>'+esc(u.name)+'</h2><p class="rp-sub">'+esc([u.addr,u.ort].filter(Boolean).join(', '))+'</p>';
+    h+='<h3>Offen ('+open.length+')</h3>'+(open.length?'<table class="rp-t"><thead><tr><th>Datum</th><th>Art</th><th>Was</th><th>Status</th></tr></thead><tbody>'+open.map(row).join('')+'</tbody></table>':'<p class="rp-sub">Nichts offen.</p>');
+    h+='<h3>Erledigt ('+done.length+')</h3>'+(done.length?'<table class="rp-t"><thead><tr><th>Datum</th><th>Art</th><th>Was</th><th>Status</th></tr></thead><tbody>'+done.map(row).join('')+'</tbody></table>':'<p class="rp-sub">Noch nichts erledigt.</p>');
+    h+='<h3>Geleistete Stunden</h3>'+(hrsE.length?'<table class="rp-t"><thead><tr><th>Datum</th><th>Tätigkeit</th><th class="n">Std.</th></tr></thead><tbody>'+hrsE.map(function(e){ return '<tr><td>'+esc(fmtDate(hourDate(e)))+'</td><td>'+esc(e.title||'')+'</td><td class="n">'+hrs(Number(e.hours)||0)+'</td></tr>'; }).join('')+'</tbody><tfoot><tr><td colspan="2">Total</td><td class="n">'+hrs(th)+'</td></tr></tfoot></table>':'<p class="rp-sub">Keine Stunden erfasst.</p>')+'</section>';
+  });
+  return h;
 }
 document.addEventListener('change',function(ev){
   var t=ev.target; if(!t||!t.id) return;
-  if(t.id==='rp-u'){ RPT.unit=t.value; monthSheet(); }
+  if(t.id==='rp-u'){ RPT.sel=t.value; monthSheet(); }
   else if(t.id==='rp-m'&&t.value){ RPT.ym=t.value; monthSheet(); }
 });
 
@@ -1325,11 +1371,12 @@ function todayView(){
 function unitsView(){
   var h='<header class="top"><div><h1>Liegenschaften</h1><p class="sub">'+S.units.length+(S.units.length===1?' STWG':' STWGs')+'</p></div><button class="btn primary" data-act="new-unit">+ Neue STWG</button></header>'+modeNote();
   if(!S.units.length) return h+'<div class="empty"><p>Noch keine Liegenschaft erfasst.</p><div class="actions"><button class="btn primary" data-act="new-unit">Erste STWG anlegen</button><button class="btn" data-act="load-example">Beispiel ansehen</button></div></div>';
+  if(S.units.some(isRep)) h+='<div class="ufl">'+[['','Alle'],['mine','Meine'],['rep','Vertretung']].map(function(f){ return '<button class="ufb'+((S.uf||'')===f[0]?' on':'')+'" data-act="ufilter" data-id="'+f[0]+'">'+f[1]+'</button>'; }).join('')+'</div>';
   h+='<p class="lgd">Linker Rand = Farbe der Liegenschaft · rechter Rand = Dringlichkeit (rot überfällig, gelb diese Woche, rosa Schaden, grün im Griff)</p><div class="units">';
-  S.units.slice().sort(function(a,b){ return String(a.name).localeCompare(String(b.name),'de'); }).forEach(function(u){
+  S.units.slice().sort(function(a,b){ return String(a.name).localeCompare(String(b.name),'de'); }).filter(function(u){ return !S.uf||(S.uf==='rep'?isRep(u):!isRep(u)); }).forEach(function(u){
     var due=dueItems(u.id), late=due.filter(function(x){ return x.n<0; }).length, wk=due.filter(function(x){ return x.n>=0&&x.n<=7; }).length, dm=openDamages(u.id).length;
     var tk=S.entries.filter(function(e){ return e.unit===u.id&&e.kind==='task'&&isOpen(e); }).length;
-    h+='<button class="unit" style="--uc:'+unitColor(u)+';--us:'+(late?'#e2412f':wk?'#f2a516':dm?'#e879a6':'#3f9f4a')+'" data-act="open-unit" data-id="'+esc(u.id)+'"><div class="uhead">'+crest(u,40)+'<div style="min-width:0"><h3>'+esc(u.name)+'</h3>'+(u.addr?'<div class="addr">'+esc(u.addr)+'</div>':'')+
+    h+='<button class="unit'+(isRep(u)?' rep':'')+'" style="--uc:'+unitColor(u)+';--us:'+(late?'#e2412f':wk?'#f2a516':dm?'#e879a6':'#3f9f4a')+'" data-act="open-unit" data-id="'+esc(u.id)+'"><div class="uhead">'+crest(u,40)+'<div style="min-width:0"><h3>'+esc(u.name)+(isRep(u)?' <span class="vtag">Vertretung</span>':'')+'</h3>'+(u.addr?'<div class="addr">'+esc(u.addr)+'</div>':'')+
       ((u.houses&&u.houses.length)?'<div class="addr">'+esc(u.houses.map(function(x){ return x.name; }).join(', '))+'</div>':'')+'</div></div>'+
       '<div class="counts">'+(late?'<span class="pill bad">'+late+' überfällig</span>':'')+(wk?'<span class="pill warn">'+wk+' diese Woche</span>':'')+(dm?'<span class="pill kp k-damage">'+dm+(dm===1?' Schaden':' Schäden')+'</span>':'')+
       '<span class="pill">'+tk+(tk===1?' Aufgabe offen':' Aufgaben offen')+'</span>'+(!late&&!wk&&!dm?'<span class="pill good">Alles im Griff</span>':'')+'</div></button>';
@@ -1952,9 +1999,12 @@ document.addEventListener('click',function(ev){
   else if(a==='sat-big'){ S.mapBig=!S.mapBig; S.mv=null; SATV.imgId=null; render(); }
   else if(a==='spruch'){ newSpruch(); render(); }
   else if(a==='fun-toggle'){ try{ localStorage.setItem('stwg-fun',funOn()?'0':'1'); }catch(e){} render(); }
+  else if(a==='ufilter'){ S.uf=id||''; render(); }
+  else if(a==='map-mode'){ S.mapMode=id==='rep'?'rep':'own'; S.mapSel=null; S.placing=null; S.mv=null; render(); }
+  else if(a==='hand-make') printHtml(handoverHtml());
   else if(a==='report-pdf') printReport();
-  else if(a==='month-open'){ RPT.unit=(id&&unitById(id))?id:''; monthSheet(); }
-  else if(a==='rp-make') printHtml(monthReportHtml(RPT.unit,RPT.ym));
+  else if(a==='month-open'){ RPT.sel=(id&&unitById(id))?id:'mine'; monthSheet(); }
+  else if(a==='rp-make') printHtml(monthReportHtml(RPT.sel,RPT.ym));
   else if(a==='round-open') rdOpen(id);
   else if(a==='rd-ok') rdSet(i,'ok');
   else if(a==='rd-bad') rdSet(i,'bad');
